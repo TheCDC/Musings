@@ -18,6 +18,7 @@ I can't seem to think of a way to optimize this, or any way of solving this with
 from math import ceil
 import random
 
+
 def tick(l):
     buffer = l[:]
     for index, item in enumerate(l):
@@ -31,7 +32,7 @@ def check(l):
 
 l = [8, 32, 10, 2, 48, 34]
 l = [1000, 100, 10, 2]
-l = [random.randint(1,100) for i in range(random.randint(3,20))]
+l = [random.randint(1, 100) for i in range(random.randint(3, 20))]
 c = 0
 while True:
     print(l, ':', c)

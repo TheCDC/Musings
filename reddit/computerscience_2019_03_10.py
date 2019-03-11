@@ -30,12 +30,10 @@ def check(l):
     return len(set(l)) == 1
 
 
-l = [8, 32, 10, 2, 48, 34]
-l = [1000, 100, 10, 2]
 l = [random.randint(1, 100) for i in range(random.randint(3, 20))]
 c = 0
 while True:
-    print(l, ':', c)
+    print(c, ':', l)
     if check(l):
         break
     l = tick(l)

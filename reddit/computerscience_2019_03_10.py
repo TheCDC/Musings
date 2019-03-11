@@ -20,6 +20,7 @@ import random
 
 
 def tick(l):
+    """Return the next state of the simulation"""
     buffer = l[:]
     for index, item in enumerate(l):
         buffer[index] = ceil(item/2) + ceil(l[index-1]/2)
@@ -27,14 +28,21 @@ def tick(l):
 
 
 def check(l):
+    """Check whether a simulation state is terminal."""
     return len(set(l)) == 1
 
 
+def simulate(l):
+    """Step through states until a terminal state is reached."""
+    c = 0
+    while True:
+        yield c, l
+        if check(l):
+            break
+        l = tick(l)
+        c += 1
+
+
 l = [random.randint(1, 100) for i in range(random.randint(3, 20))]
-c = 0
-while True:
-    print(c, ':', l)
-    if check(l):
-        break
-    l = tick(l)
-    c += 1
+for state in simulate(l):
+    print(*state, sep='\t')

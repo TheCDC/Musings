@@ -5,19 +5,15 @@ import copy
 
 
 class CellStates(enum.Enum):
-    # pond='🌊'
-    # tree='🌳'
-    # ash='💀'
-    # fire='🔥'
     pond = 'p'
     tree = 't'
     ash = 'a'
     fire = 'f'
 
 
-def generate_forest(x, y, density=0.8):
+def generate_forest(x, y, tree_density=0.8):
     available_states = [CellStates.tree, CellStates.pond]
-    forest = [[random.choices(list(available_states), [density, 1-density])[0]
+    forest = [[random.choices(list(available_states), [tree_density, 1-tree_density])[0]
                for _ in range(x)] for _ in range(y)]
     return forest
 
@@ -37,7 +33,7 @@ def print_state(f):
         print()
 
 
-def next_state(forest):
+def next_state(forest,spread_chance=0.75):
     adjacent_offsets = [(0, -1), (0, 1), (-1, 0), (1, 0)]
     next_frame = copy.deepcopy(forest)
     for y in range(len(forest)):
@@ -45,12 +41,14 @@ def next_state(forest):
             cell = forest[y][x]
             if cell == CellStates.tree:
                 for offset in adjacent_offsets:
+                    if x+offset[0] < 0 or y+offset[1] < 0:
+                        continue
                     try:
                         neighbor = forest[y+offset[1]][x+offset[0]]
                     except IndexError:
                         continue
 
-                    if neighbor == CellStates.fire:
+                    if neighbor == CellStates.fire and random.random() < spread_chance:
                         next_frame[y][x] = CellStates.fire
                         break
             if cell == CellStates.fire:

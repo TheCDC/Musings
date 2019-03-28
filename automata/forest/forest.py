@@ -33,8 +33,12 @@ def print_state(f):
         print()
 
 
-def next_state(forest,spread_chance=0.75):
-    adjacent_offsets = [(0, -1), (0, 1), (-1, 0), (1, 0)]
+def next_state(forest, spread_chance=0.75):
+    adjacent_offsets = [
+        (-1, 1), (0, 1), (1, 1),
+        (-1, 0), (0, 0), (1, 0),
+        (-1, -1), (0, -1), (1, -1)
+    ]
     next_frame = copy.deepcopy(forest)
     for y in range(len(forest)):
         for x in range(len(forest[0])):
@@ -48,7 +52,7 @@ def next_state(forest,spread_chance=0.75):
                     except IndexError:
                         continue
 
-                    if neighbor == CellStates.fire and random.random() < spread_chance:
+                    if neighbor == CellStates.fire and random.random() <= spread_chance:
                         next_frame[y][x] = CellStates.fire
                         break
             if cell == CellStates.fire:

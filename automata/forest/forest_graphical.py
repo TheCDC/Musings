@@ -3,8 +3,8 @@ import forest
 import time
 import copy
 import random
-SIMULATION_DIMENSIONS = (50, 50)
-CELL_HEIGHT = 10
+SIMULATION_DIMENSIONS = (200, 200)
+CELL_HEIGHT = 3
 
 
 state_to_color = {
@@ -35,14 +35,16 @@ class Game(arcade.Window):
             SIMULATION_DIMENSIONS[0]*CELL_HEIGHT, SIMULATION_DIMENSIONS[1]*CELL_HEIGHT, 'Forest Fire')
 
     def setup(self):
+        self.density = random.random()/2 + 1/2
         self.state = forest.generate_forest(
-            *SIMULATION_DIMENSIONS, tree_density=random.random())
+            *SIMULATION_DIMENSIONS, tree_density=self.density)
         self.state = forest.set_fire(self.state)
-        self.previous_state = copy.deepcopy(self.state)
-        self.finished_simulation = False
+        self.previous_state = self.state
 
         self.shapes_grid = list()
-        self.spread_chance = random.random()
+        self.spread_chance = random.random()/2 + 1/2
+        self.sprites_list = arcade.SpriteList()
+        self.last_finished_time = time.time()
         arcade.set_background_color(arcade.color.WHITE)
 
         start_time = int(round(time.time() * 1000))
@@ -52,26 +54,20 @@ class Game(arcade.Window):
             for x, cell in enumerate(row):
                 shape = generate_cell_shape(x, y, state_to_color[cell])
                 newrow.append(shape)
+                self.sprites_list.append(shape)
             self.shapes_grid.append(newrow)
         end_time = int(round(time.time() * 1000))
         total_time = end_time - start_time
         # print('setup', total_time)
-
-    def get_rectangles(self):
-        shapes = arcade.SpriteList()
-        for row in self.shapes_grid:
-            for item in row:
-                shapes.append(item)
-
-        return shapes
 
     def on_draw(self):
 
         start_time = int(round(time.time() * 1000))
         shapes = arcade.ShapeElementList()
         arcade.start_render()
-        self.get_rectangles().draw()
-        arcade.draw_text(f'P(spread):{self.spread_chance:.2f}', 10, 20, arcade.color.BLACK, 14)
+        self.sprites_list.draw()
+        arcade.draw_text(
+            f'P(spread):{self.spread_chance:.2f}, density={self.density:.2f}', 10, 20, arcade.color.BLACK, 18)
         end_time = int(round(time.time() * 1000))
         total_time = end_time - start_time
         # print('draw', total_time)
@@ -94,8 +90,7 @@ class Game(arcade.Window):
         end_time = int(round(time.time() * 1000))
         total_time = end_time - start_time
         # print('update', total_time)
-        if fire_count == 0:
-            self.finished_simulation = True
+        if fire_count == 0 and time.time() - self.last_finished_time > 3:
             self.setup()
 
     def on_mouse_press(self, x, y, button, modifiers):

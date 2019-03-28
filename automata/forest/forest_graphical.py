@@ -3,8 +3,9 @@ import forest
 import time
 import copy
 import random
-SIMULATION_DIMENSIONS = (200, 200)
-CELL_HEIGHT = 3
+import argparse
+SIMULATION_DIMENSIONS = (50, 50)
+CELL_HEIGHT = 15
 
 
 state_to_color = {
@@ -15,34 +16,35 @@ state_to_color = {
 }
 
 
-def generate_cell_shape(x, y, color):
-    xx = x*CELL_HEIGHT + CELL_HEIGHT/2
-    yy = y*CELL_HEIGHT+CELL_HEIGHT/2
+def generate_cell_shape(x, y, color, cell_height=CELL_HEIGHT):
+    xx = x*cell_height + cell_height/2
+    yy = y*cell_height+cell_height/2
     sprite = arcade.Sprite(
         filename='pixel.png',
         center_x=xx,
         center_y=yy,
-        scale=CELL_HEIGHT,
+        scale=cell_height,
     )
     sprite.color = color
     return sprite
-    return arcade.create_rectangle_filled(xx, yy, CELL_HEIGHT, CELL_HEIGHT, color)
 
 
 class Game(arcade.Window):
-    def __init__(self):
+    def __init__(self, window_height, cell_height):
         super().__init__(
-            SIMULATION_DIMENSIONS[0]*CELL_HEIGHT, SIMULATION_DIMENSIONS[1]*CELL_HEIGHT, 'Forest Fire')
+            window_height*cell_height, window_height*cell_height, 'Forest Fire')
+        self.simulation_height = window_height
+        self.cell_height = cell_height
 
     def setup(self):
-        self.density = random.random()/2 + 1/2
+        self.density = random.random()
         self.state = forest.generate_forest(
-            *SIMULATION_DIMENSIONS, tree_density=self.density)
+            self.simulation_height, self.simulation_height, tree_density=self.density)
         self.state = forest.set_fire(self.state)
         self.previous_state = self.state
 
         self.shapes_grid = list()
-        self.spread_chance = random.random()/2 + 1/2
+        self.spread_chance = random.random()
         self.sprites_list = arcade.SpriteList()
         self.last_finished_time = time.time()
         arcade.set_background_color(arcade.color.WHITE)
@@ -52,7 +54,7 @@ class Game(arcade.Window):
         for y, row in enumerate(self.state):
             newrow = list()
             for x, cell in enumerate(row):
-                shape = generate_cell_shape(x, y, state_to_color[cell])
+                shape = generate_cell_shape(x, y, state_to_color[cell], self.cell_height)
                 newrow.append(shape)
                 self.sprites_list.append(shape)
             self.shapes_grid.append(newrow)
@@ -97,8 +99,20 @@ class Game(arcade.Window):
         self.setup()
 
 
+parser = argparse.ArgumentParser()
+parser.add_argument('--height', type=int,
+                    help="Simulation height (cells)", default=75,)
+parser.add_argument('--cell_height', type=int,
+                    help='Cell height (pixels)', default=10,)
+
+
 def main():
-    g = Game()
+    args = parser.parse_args()
+    CELL_HEIGHT = args.cell_height
+    SIMULATION_DIMENSIONS = (args.height, args.height)
+    print(CELL_HEIGHT, SIMULATION_DIMENSIONS)
+
+    g = Game(args.height, args.cell_height)
     g.setup()
     arcade.run()
 

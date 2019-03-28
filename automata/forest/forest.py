@@ -2,7 +2,7 @@
 import random
 import enum
 import copy
-
+import math
 
 class CellStates(enum.Enum):
     pond = 'p'
@@ -10,6 +10,11 @@ class CellStates(enum.Enum):
     ash = 'a'
     fire = 'f'
 
+adjacent_offsets = [
+    (-1, 1), (0, 1), (1, 1),
+    (-1, 0), (0, 0), (1, 0),
+    (-1, -1), (0, -1), (1, -1)
+]
 
 def generate_forest(x, y, tree_density=0.8):
     available_states = [CellStates.tree, CellStates.pond]
@@ -20,9 +25,11 @@ def generate_forest(x, y, tree_density=0.8):
 
 def set_fire(forest):
     new_forest = copy.deepcopy(forest)
-    y = len(forest)//2
-    x = len(forest[0])//2
-    new_forest[y][x] = CellStates.fire
+    num_fires  = random.randint(1,math.ceil(len(forest)**(1/2)))
+    for i in range(num_fires):
+        y = random.randrange(len(forest))
+        x = random.randrange(len(forest[y]))
+        new_forest[y][x] = CellStates.fire
     return new_forest
 
 
@@ -34,11 +41,7 @@ def print_state(f):
 
 
 def next_state(forest, spread_chance=0.75):
-    adjacent_offsets = [
-        (-1, 1), (0, 1), (1, 1),
-        (-1, 0), (0, 0), (1, 0),
-        (-1, -1), (0, -1), (1, -1)
-    ]
+
     next_frame = copy.deepcopy(forest)
     for y in range(len(forest)):
         for x in range(len(forest[0])):

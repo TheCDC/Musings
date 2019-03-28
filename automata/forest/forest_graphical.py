@@ -110,7 +110,6 @@ def main():
     args = parser.parse_args()
     CELL_HEIGHT = args.cell_height
     SIMULATION_DIMENSIONS = (args.height, args.height)
-    print(CELL_HEIGHT, SIMULATION_DIMENSIONS)
 
     g = Game(args.height, args.cell_height)
     g.setup()

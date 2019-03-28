@@ -15,9 +15,9 @@ class CellStates(enum.Enum):
     fire = 'f'
 
 
-def generate_forest(x, y):
+def generate_forest(x, y, density=0.8):
     available_states = [CellStates.tree, CellStates.pond]
-    forest = [[random.choice(list(available_states))
+    forest = [[random.choices(list(available_states), [density, 1-density])[0]
                for _ in range(x)] for _ in range(y)]
     return forest
 
@@ -56,8 +56,8 @@ def next_state(forest):
             if cell == CellStates.fire:
                 next_frame[y][x] = CellStates.ash
 
-
     return next_frame
+
 
 def main():
     f = generate_forest(10, 10)
@@ -68,5 +68,7 @@ def main():
         f = next_state(f)
         print_state(f)
         print('===========')
+
+
 if __name__ == '__main__':
     main()

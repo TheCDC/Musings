@@ -3,6 +3,9 @@ import random
 import enum
 import copy
 import math
+import matplotlib.pyplot as plt
+import numpy as np
+
 
 class CellStates(enum.Enum):
     pond = 'p'
@@ -10,22 +13,59 @@ class CellStates(enum.Enum):
     ash = 'a'
     fire = 'f'
 
+
 adjacent_offsets = [
     (-1, 1), (0, 1), (1, 1),
     (-1, 0), (0, 0), (1, 0),
     (-1, -1), (0, -1), (1, -1)
 ]
 
+
+def interpolate_forest(forest):
+    row_sums = [0 for _ in range(len(forest[0]))]
+    col_sums = [0 for _ in range(len(forest))]
+    for y, row in enumerate(forest):
+        for x, cell in enumerate(row):
+            if forest[y][x] == CellStates.tree:
+                row_sums[y] += 1
+                col_sums[x] += 1
+    # print(col_sums)
+    # print(*row_sums,sep='\n')
+    lowest = None
+
+    for rsum in row_sums:
+        for csum in col_sums:
+            val = rsum + csum
+            if lowest is None:
+                lowest = val
+            lowest = min(lowest, val)
+    heatmap = np.zeros(shape=(len(row_sums), len(col_sums)))
+    for row, rsum in enumerate(row_sums):
+        for col, csum in enumerate(col_sums):
+            heatmap[row, col] = rsum+csum
+            print(rsum+csum-lowest, end='\t')
+        print()
+    print('lowest', lowest)
+    print('='*10)
+    plt.imshow(heatmap,
+               cmap='viridis',
+            #    interpolation='nearest',
+               )
+    plt.show()
+    return forest
+
+
 def generate_forest(x, y, tree_density=0.8):
     available_states = [CellStates.tree, CellStates.pond]
     forest = [[random.choices(list(available_states), [tree_density, 1-tree_density])[0]
                for _ in range(x)] for _ in range(y)]
+    # interpolate_forest(forest)
     return forest
 
 
 def set_fire(forest):
     new_forest = copy.deepcopy(forest)
-    num_fires  = random.randint(1,math.ceil(len(forest)**(1/2)))
+    num_fires = random.randint(1, math.ceil(len(forest)**(1/2)))
     for i in range(num_fires):
         y = random.randrange(len(forest))
         x = random.randrange(len(forest[y]))

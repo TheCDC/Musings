@@ -85,7 +85,7 @@ class Game(arcade.Window):
                 prev_val = self.previous_state[y][x]
                 new_val = self.state[y][x]
                 if new_val != prev_val:
-                    # changing colors is expensive, so only do it when necenssary
+                    # changing colors is expensive, so only do it when necessary
                     self.shapes_grid[y][x].color = state_to_color[cell]
                 if new_val == forest.CellStates.fire:
                     fire_count += 1

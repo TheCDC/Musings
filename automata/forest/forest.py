@@ -4,28 +4,31 @@ import enum
 import copy
 import math
 
+
 class CellStates(enum.Enum):
     pond = 'p'
     tree = 't'
     ash = 'a'
     fire = 'f'
 
-adjacent_offsets = [
-    (-1, 1), (0, 1), (1, 1),
-    (-1, 0), (0, 0), (1, 0),
-    (-1, -1), (0, -1), (1, -1)
-]
 
-def generate_forest(x, y, tree_density=0.8):
+adjacent_offsets = [(-1, 1), (0, 1), (1, 1), (-1, 0), (0, 0), (1, 0), (-1, -1),
+                    (0, -1), (1, -1)]
+
+
+def generate_forest(x, y, tree_density=0.8, **kwargs):
     available_states = [CellStates.tree, CellStates.pond]
-    forest = [[random.choices(list(available_states), [tree_density, 1-tree_density])[0]
-               for _ in range(x)] for _ in range(y)]
+    forest = [[
+        random.choices(
+            list(available_states), [tree_density, 1 - tree_density])[0]
+        for _ in range(x)
+    ] for _ in range(y)]
     return forest
 
 
 def set_fire(forest):
     new_forest = copy.deepcopy(forest)
-    num_fires  = random.randint(1,math.ceil(len(forest)**(1/2)))
+    num_fires = random.randint(1, math.ceil(len(forest)**(1 / 2)))
     for i in range(num_fires):
         y = random.randrange(len(forest))
         x = random.randrange(len(forest[y]))
@@ -40,26 +43,42 @@ def print_state(f):
         print()
 
 
-def next_state(forest, spread_chance=0.75):
+def next_state(forest,
+               spread_chance=0.75,
+               sustain_chance=0.25,
+               reignite_chance=0.01,
+               **kwargs):
 
     next_frame = copy.deepcopy(forest)
     for y in range(len(forest)):
         for x in range(len(forest[0])):
             cell = forest[y][x]
-            if cell == CellStates.tree:
-                for offset in adjacent_offsets:
-                    if x+offset[0] < 0 or y+offset[1] < 0:
-                        continue
-                    try:
-                        neighbor = forest[y+offset[1]][x+offset[0]]
-                    except IndexError:
-                        continue
+            neighbors = set()
+            for offset in adjacent_offsets:
+                if x + offset[0] < 0 or y + offset[1] < 0:
+                    continue
+                try:
+                    neighbors.add(forest[y + offset[1]][x + offset[0]])
+                except IndexError:
+                    continue
 
-                    if neighbor == CellStates.fire and random.random() <= spread_chance:
+            if cell == CellStates.tree:
+                if CellStates.fire in neighbors:
+                    if random.random() <= spread_chance:
                         next_frame[y][x] = CellStates.fire
-                        break
-            if cell == CellStates.fire:
-                next_frame[y][x] = CellStates.ash
+
+            elif cell == CellStates.ash:
+                if (CellStates.fire in neighbors) and random.random(
+                ) <= reignite_chance:
+                    next_frame[y][x] = CellStates.fire
+
+            elif cell == CellStates.fire:
+                if (CellStates.tree in neighbors) and random.random(
+                ) <= sustain_chance:
+                    next_frame[y][x] = CellStates.fire
+                else:
+                    next_frame[y][x] = CellStates.ash
+
 
     return next_frame
 

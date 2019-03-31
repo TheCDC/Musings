@@ -9,10 +9,10 @@ SIMULATION_DIMENSIONS = (50, 50)
 CELL_HEIGHT = 15
 
 state_to_color = {
-    forest.CellStates.ash: arcade.color.ASH_GREY,
-    forest.CellStates.fire: arcade.color.RED_ORANGE,
-    forest.CellStates.tree: arcade.color.GUPPIE_GREEN,
-    forest.CellStates.pond: arcade.color.BLUE_YONDER,
+    forest.CellStates.ash.value: arcade.color.ASH_GREY,
+    forest.CellStates.fire.value: arcade.color.RED_ORANGE,
+    forest.CellStates.tree.value: arcade.color.GUPPIE_GREEN,
+    forest.CellStates.pond.value: arcade.color.BLUE_YONDER,
 }
 
 
@@ -35,14 +35,14 @@ class Game(arcade.Window):
             width=window_height * cell_height,
             height=window_height * cell_height,
             title='Forest Fire',
-            update_rate=1 / 20,
-            # resizable=False,
+            update_rate=1 / 60,
+            resizable=False,
             antialiasing=False,
         )
         self.simulation_height = window_height
         self.cell_height = cell_height
         self.simulation_parameters = None
-        self.state = None
+        self.simulation = None
         self.previous_state = None
 
     def setup(self):
@@ -51,11 +51,10 @@ class Game(arcade.Window):
             spread_chance=random.random() * 0.9,
             sustain_chance=random.random(),
             reignite_chance=random.random() / 5)
-        self.state = forest.generate_forest(self.simulation_height,
-                                            self.simulation_height,
-                                            **self.simulation_parameters)
-        self.state = forest.set_fire(self.state)
-        self.previous_state = self.state
+        self.simulation: forest.SimulationState = forest.SimulationState(
+            self.simulation_height, self.simulation_height,
+            **self.simulation_parameters)
+        self.previous_state = self.simulation
 
         self.shapes_grid = list()
         self.sprites_list = arcade.SpriteList()
@@ -64,7 +63,7 @@ class Game(arcade.Window):
 
         start_time = int(round(time.time() * 1000))
 
-        for y, row in enumerate(self.state):
+        for y, row in enumerate(self.simulation.state):
             newrow = list()
             for x, cell in enumerate(row):
                 shape = generate_cell_shape(x, y, state_to_color[cell],
@@ -101,16 +100,16 @@ class Game(arcade.Window):
 
     def update(self, delta_time):
         start_time = int(round(time.time() * 1000))
-        self.previous_state = self.state
-        self.state = forest.next_state(self.state,
-                                       **self.simulation_parameters)
-        fire_count = 0
+        self.previous_state = self.simulation.state
+        self.simulation.step(**self.simulation_parameters)
+        self.state = self.simulation.state
+
         counts = Counter()
-        for y, row in enumerate(self.state):
+        for y, row in enumerate(self.simulation.state):
             counts.update(row)
             for x, cell in enumerate(row):
                 prev_val = self.previous_state[y][x]
-                new_val = self.state[y][x]
+                new_val = self.simulation.state[y][x]
                 if new_val != prev_val:
                     # changing colors is expensive, so only do it when necessary
                     self.shapes_grid[y][x].color = state_to_color[cell]
@@ -118,7 +117,8 @@ class Game(arcade.Window):
         total_time = end_time - start_time
         # print('update', total_time)
         if 0 in [
-                counts[forest.CellStates.fire], counts[forest.CellStates.tree]
+                counts[forest.CellStates.fire.value],
+                counts[forest.CellStates.tree.value]
         ] and time.time() - self.last_finished_time > 3:
             self.setup()
 

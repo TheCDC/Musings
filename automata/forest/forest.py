@@ -103,7 +103,7 @@ def set_fire(forest):
 def print_state(f):
     for row in f:
         for cell in row:
-            print(cell.value, end='')
+            print(CellStates(cell).name, end='')
         print()
 
 

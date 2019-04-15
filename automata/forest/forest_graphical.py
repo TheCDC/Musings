@@ -12,7 +12,7 @@ state_to_color = {
     forest.CellStates.ash.value: arcade.color.ASH_GREY,
     forest.CellStates.fire.value: arcade.color.RED_ORANGE,
     forest.CellStates.tree.value: arcade.color.GUPPIE_GREEN,
-    forest.CellStates.pond.value: arcade.color.BLUE_YONDER,
+    forest.CellStates.pond.value: (40, 122, 255),
 }
 
 
@@ -34,11 +34,11 @@ class Game(arcade.Window):
         super().__init__(
             width=window_height * cell_height,
             height=window_height * cell_height,
-            title='Forest Fire',
-            update_rate=1 / 60,
+            title=f'Forest Fire {window_height}x{window_height}',
             resizable=False,
             antialiasing=False,
         )
+        self.set_update_rate(1/16)
         self.simulation_height = window_height
         self.cell_height = cell_height
         self.simulation_parameters = None
@@ -49,7 +49,7 @@ class Game(arcade.Window):
         self.simulation_parameters = dict(
             tree_density=random.random() * 0.5 + 0.5,
             spread_chance=random.random() * 0.9,
-            sustain_chance=random.random(),
+            sustain_chance=random.random()/2,
             reignite_chance=random.random() / 5)
         self.simulation: forest.SimulationState = forest.SimulationState(
             self.simulation_height, self.simulation_height,
@@ -58,7 +58,6 @@ class Game(arcade.Window):
 
         self.shapes_grid = list()
         self.sprites_list = arcade.SpriteList()
-        self.last_finished_time = time.time()
         arcade.set_background_color(arcade.color.WHITE)
 
         start_time = int(round(time.time() * 1000))
@@ -91,8 +90,8 @@ class Game(arcade.Window):
             10,
             20,
             arcade.color.BLACK,
-            25,
-            bold=True,
+            18,
+            bold=False,
         )
         end_time = int(round(time.time() * 1000))
         total_time = end_time - start_time
@@ -113,13 +112,18 @@ class Game(arcade.Window):
                 if new_val != prev_val:
                     # changing colors is expensive, so only do it when necessary
                     self.shapes_grid[y][x].color = state_to_color[cell]
+                else:
+                    # cell state unchanged
+                    if new_val == forest.CellStates.fire.value:
+                        self.shapes_grid[y][x].color = tuple(int(channel*0.75) for channel in self.shapes_grid[y][x].color)
+
         end_time = int(round(time.time() * 1000))
         total_time = end_time - start_time
         # print('update', total_time)
         if 0 in [
                 counts[forest.CellStates.fire.value],
                 counts[forest.CellStates.tree.value]
-        ] and time.time() - self.last_finished_time > 3:
+        ]:
             self.setup()
 
     def on_mouse_press(self, x, y, button, modifiers):

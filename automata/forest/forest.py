@@ -61,8 +61,7 @@ class SimulationState:
                 # add all neighbors to touched coordinates
                 for c in neighbor_coords:
                     self.touched_coordinates.add(c)
-                if (CellStates.tree.value in neighbors
-                    ) and random.random() <= sustain_chance:
+                if random.random() <= sustain_chance:
                     next_frame[y][x] = CellStates.fire.value
 
                 else:

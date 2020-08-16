@@ -19,12 +19,31 @@ state_to_color = {
 def randrange(start,stop):
     return random.random() * (start - stop) + start
 
-def generate_cell_shape_irregular(x, y, cell_height=CELL_HEIGHT) -> Tuple[Tuple]:
-    xx = x * cell_height + cell_height / 2
-    yy = y * cell_height + cell_height / 2
-    offsets = ((xx,yy),(xx + cell_height,yy),(xx,yy + cell_height),(xx + cell_height,yy + cell_height))
+def perturb_corner(coords,side_length,tolerance=0.1) -> Tuple[float]:
+    return tuple(c + side_length * randrange(-tolerance,tolerance) for c in coords)
+def get_cell_corners(coords):
+    offsets = ((0,1),
+               (1,0),
+               (1,1),
+               (0,1),)
+    return tuple((coords[0] + o[0],coords[1] + o[1]) for o in offsets)
+
+def get_corners(x, y, cell_height=CELL_HEIGHT) -> Tuple[Tuple]:
+    xx = x * cell_height 
+    yy = y * cell_height 
+    offsets = ((xx,yy),
+               (xx + cell_height,yy),
+               (xx + cell_height,yy + cell_height),
+               (xx,yy + cell_height),)
     tolerance = 0.1
-    corners = tuple([(a + randrange(tolerance,tolerance),b + randrange(tolerance,tolerance)) for a,b in offsets])
+    t = tolerance * cell_height
+   
+    #corners = tuple([(a + randrange(-t,t),b + randrange(-t,t)) for a,b in
+    #offsets])
+    corners = ((xx ,yy),
+               (xx + cell_height,yy),
+               (xx + cell_height ,yy + cell_height),
+               (xx,yy + cell_height),)
     return corners
 
 def generate_cell_shape(x, y, color, cell_height=CELL_HEIGHT):
@@ -68,11 +87,19 @@ class Game(arcade.Window):
 
         start_time = int(round(time.time() * 1000))
         #generate irregularly shaped corners
+        pristine_to_perturbed_corners = dict()
         for y, row in enumerate(self.simulation.state):
             for x, cell in enumerate(row):
-              
-                self.irregular_corners.update({(x,y):generate_cell_shape_irregular(x,y,self.cell_height)})
+                corners = get_corners(x,y,self.cell_height)
+                for corner in corners:
+                    pristine_to_perturbed_corners.update({(x,y):perturb_corner(corner,self.cell_height,0.3)})
+        for y, row in enumerate(self.simulation.state):
+            for x, cell in enumerate(row):
+                corners = get_corners(x,y,1)
+
+                self.irregular_corners.update({(x,y):tuple(pristine_to_perturbed_corners[c] for c in corners if c in pristine_to_perturbed_corners)})
         #generate all sprites (tiles)
+        
         for y, row in enumerate(self.simulation.state):
             newrow = list()
             for x, cell in enumerate(row):
@@ -154,8 +181,9 @@ def main():
     args = parser.parse_args()
     CELL_HEIGHT = args.cell_height
     SIMULATION_DIMENSIONS = (args.height, args.height)
-
+    
     g = Game(args.height, args.cell_height)
+    
     g.setup()
     arcade.run()
 

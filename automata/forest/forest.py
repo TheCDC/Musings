@@ -59,7 +59,7 @@ def generate_forest(x, y, tree_density=0.8):
     available_states = [CellStates.tree, CellStates.pond]
     forest = [[random.choices(list(available_states), [tree_density, 1-tree_density])[0]
                for _ in range(x)] for _ in range(y)]
-    # interpolate_forest(forest)
+    interpolate_forest(forest)
     return forest
 
 

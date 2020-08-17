@@ -5,7 +5,7 @@ import copy
 import random
 import argparse
 from collections import Counter
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple,Generic
 SIMULATION_DIMENSIONS = (50, 50)
 CELL_HEIGHT = 15
 
@@ -15,6 +15,71 @@ state_to_color = {
     forest.CellStates.tree.value: arcade.color.GUPPIE_GREEN,
     forest.CellStates.pond.value: (40, 122, 255),
 }
+class Point:
+    def __init__(self, coords: Tuple[float]):
+        self.coordinates = list(coords)
+        lc = len(self.coordinates)
+    def __mul__(self,other):
+        return Point([c * other for c in self.coordinates])
+    def __hash__(self):
+        return hash(tuple(self.coordinates))
+    def __repr__(self):
+       return f"Point({self.coordinates})"
+class Tile:
+    def __init__(self,logical_corners:List[Point],actual_corners:List[Point],color:Tuple[int]):
+        self.logical_corners = logical_corners
+        self.actual_corners = actual_corners
+        self._color = color
+        self.shape :arcade.Shape = self.get_shape()
+    def __str__(self):
+        return "Tile({},{},{})".format(len(self.logical_corners,self.actual_corners,self.color))
+    def get_shape(self):
+        return arcade.create_polygon([p.coordinates for p in self.actual_corners] ,self.color)
+    @property
+    def color(self):
+        return self._color
+    @color.setter
+    def color(self,value):
+        if value != self._color:
+            self._color = value
+            self.shape = self.get_shape()
+
+
+class Board:
+    def __init__(self,width:int,height:int,cell_side_length:float,simulation_state:List[List[int]]):
+        self.width :int = width
+        self.height :int = height
+        self.unit_coordinates :List[List[Point]] = [[Point([x,y]) for x in range(self.width + 1)] for y in range(self.height + 1)]
+        self.cell_side_length :float = cell_side_length
+        self.actual_coordinates :List[List[Point]] = [
+            [perturb_point(p * cell_side_length,cell_side_length,0.3) for p in row]
+           for row in self.unit_coordinates]
+        self.tiles :List[Tile] = list()
+        self.logical_coords_to_tiles :Dict[Point,Tile] = dict()
+        for coord in ((x,y) for x in range(self.width) for y in range(self.height)):
+            corners_logical = [Point(cs) for cs in get_cell_corners(coord)]
+            corners_actual = [self.actual_coordinates[c.coordinates[0]][c.coordinates[1]] for c in corners_logical]
+            t = Tile(corners_logical,corners_actual,state_to_color[simulation_state[coord[1]][coord[0]]])
+            self.logical_coords_to_tiles.update({coord:t})
+            self.tiles.append(t)
+        
+    def update(self,simulation_state):
+        for y,row in enumerate(simulation_state):
+            for x, cell_state in enumerate(row):
+                old = self.logical_coords_to_tiles[(x,y)].color 
+                new_color = state_to_color[cell_state]
+                self.logical_coords_to_tiles[(x,y)].color = new_color
+    def draw(self):
+        shapes = arcade.ShapeElementList()
+        for t in self.tiles:
+            shapes.append(t.shape)
+        shapes.draw()
+
+    
+def perturb_point(p:Point,side_length:float,tolerance=0.1):
+    return Point([
+        c + side_length * randrange(-tolerance,tolerance) for c in p.coordinates
+        ])
 
 def randrange(start,stop):
     return random.random() * (start - stop) + start
@@ -22,7 +87,7 @@ def randrange(start,stop):
 def perturb_corner(coords,side_length,tolerance=0.1) -> Tuple[float]:
     return tuple(c + side_length * randrange(-tolerance,tolerance) for c in coords)
 def get_cell_corners(coords):
-    offsets = ((0,1),
+    offsets = ((0,0),
                (1,0),
                (1,1),
                (0,1),)
@@ -57,7 +122,7 @@ def generate_cell_shape(x, y, color, cell_height=CELL_HEIGHT):
     return sprite
 
 
-class Game(arcade.Window):
+class Game ( arcade.Window ):
     def __init__(self, window_height:int, cell_height:int):
         super().__init__(width=window_height * cell_height,
             height=window_height * cell_height,
@@ -86,30 +151,7 @@ class Game(arcade.Window):
         arcade.set_background_color(arcade.color.WHITE)
 
         start_time = int(round(time.time() * 1000))
-        #generate irregularly shaped corners
-        pristine_to_perturbed_corners = dict()
-        for y, row in enumerate(self.simulation.state):
-            for x, cell in enumerate(row):
-                corners = get_corners(x,y,self.cell_height)
-                for corner in corners:
-                    pristine_to_perturbed_corners.update({(x,y):perturb_corner(corner,self.cell_height,0.3)})
-        for y, row in enumerate(self.simulation.state):
-            for x, cell in enumerate(row):
-                corners = get_corners(x,y,1)
-
-                self.irregular_corners.update({(x,y):tuple(pristine_to_perturbed_corners[c] for c in corners if c in pristine_to_perturbed_corners)})
-        #generate all sprites (tiles)
-        
-        for y, row in enumerate(self.simulation.state):
-            newrow = list()
-            for x, cell in enumerate(row):
-                list_of_corners = self.irregular_corners[(x,y)]
-                shape = generate_cell_shape(x, y, state_to_color[cell],
-                                            self.cell_height)
-                newrow.append(shape)
-                self.sprites_list.append(shape)
-            self.shapes_grid.append(newrow)
-
+        self.board = Board(self.simulation_height,self.simulation_height,self.cell_height,self.simulation.state)
         end_time = int(round(time.time() * 1000))
         total_time = end_time - start_time
         # print('setup', total_time)
@@ -117,12 +159,7 @@ class Game(arcade.Window):
     def on_draw(self):
 
         start_time = int(round(time.time() * 1000))
-        arcade.start_render()
-        #self.sprites_list.draw()
-        for point,corners in self.irregular_corners.items():
-            state = self.simulation.state[point[1]][point[0]]
-            color = state_to_color[state]
-            arcade.draw_polygon_filled(corners, color)
+        self.board.draw()
 
         status_string = '\n'.join([f'density={self.simulation_parameters["tree_density"]:.2f}',
             f'P(spread)={self.simulation_parameters["spread_chance"]:.2f}',
@@ -131,7 +168,6 @@ class Game(arcade.Window):
         arcade.draw_text(status_string, 10, 20, arcade.color.BLACK, 18, bold=False,)
         end_time = int(round(time.time() * 1000))
         total_time = end_time - start_time
-        #arcade.finish_render()
         # print('draw', total_time)
 
     def update(self, delta_time):
@@ -139,28 +175,30 @@ class Game(arcade.Window):
         self.previous_state = self.simulation.state
         self.simulation.step(**self.simulation_parameters)
         self.state = self.simulation.state
+        self.board.update(self.state)
 
-        counts = Counter()
-        for y, row in enumerate(self.simulation.state):
-            counts.update(row)
-            for x, cell in enumerate(row):
-                prev_val = self.previous_state[y][x]
-                new_val = self.simulation.state[y][x]
-                if new_val != prev_val:
-                    # changing colors is expensive, so only do it when
-                    # necessary
-                    self.shapes_grid[y][x].color = state_to_color[cell]
-                else:
-                    # cell state unchanged
-                    if new_val == forest.CellStates.fire.value:
-                        self.shapes_grid[y][x].color = tuple(int(channel * 0.75) for channel in self.shapes_grid[y][x].color)
+        #counts = Counter()
+        #for y, row in enumerate(self.simulation.state):
+        #    counts.update(row)
+        #    for x, cell in enumerate(row):
+        #        prev_val = self.previous_state[y][x]
+        #        new_val = self.simulation.state[y][x]
+        #        if new_val != prev_val:
+        #            # changing colors is expensive, so only do it when
+        #            # necessary
+        #            self.shapes_grid[y][x].color = state_to_color[cell]
+        #        else:
+        #            # cell state unchanged
+        #            if new_val == forest.CellStates.fire.value:
+        #                self.shapes_grid[y][x].color = tuple(int(channel *
+        #                0.75) for channel in self.shapes_grid[y][x].color)
 
         end_time = int(round(time.time() * 1000))
         total_time = end_time - start_time
         # print('update', total_time)
-        if 0 in [counts[forest.CellStates.fire.value],
-                counts[forest.CellStates.tree.value]]:
-            self.setup()
+        #if 0 in [counts[forest.CellStates.fire.value],
+        #        counts[forest.CellStates.tree.value]]:
+        #    self.setup()
 
     def on_mouse_press(self, x, y, button, modifiers):
         self.setup()

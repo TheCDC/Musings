@@ -52,7 +52,7 @@ class Board:
         self.unit_coordinates :List[List[Point]] = [[Point([x,y]) for x in range(self.width + 1)] for y in range(self.height + 1)]
         self.cell_side_length :float = cell_side_length
         self.actual_coordinates :List[List[Point]] = [
-            [perturb_point(p * cell_side_length,cell_side_length,0.3) for p in row]
+            [perturb_point(p * cell_side_length,cell_side_length,0.1) for p in row]
            for row in self.unit_coordinates]
         self.tiles :List[Tile] = list()
         self.logical_coords_to_tiles :Dict[Point,Tile] = dict()

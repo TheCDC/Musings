@@ -16,11 +16,10 @@ class CellStates(enum.Enum):
 adjacent_offsets = [(-1, 1), (0, 1), (1, 1), (-1, 0), (0, 0), (1, 0), (-1, -1),
                     (0, -1), (1, -1)]
 
-def generate_noise_2d(shape):
+def generate_noise_2d(shape,feature_size=4)-> np.array:
     width = shape[1]
     height = shape[0]
     simplex = OpenSimplex(seed=random.randrange(0,2048))
-    feature_size = 4
     arr = np.ones((width,height))
     for y in range(height):
         for x in range(width):
@@ -92,9 +91,15 @@ def generate_grid_coordinates(arr: np.array):
 def generate_forest(x, y, tree_density=0.8, **kwargs):
     available_states = [CellStates.tree, CellStates.pond]
     forest = np.zeros((y, x))
-    noise_grid = generate_noise_2d(forest.shape)
+    noise_layers = [
+        #generate_noise_2d(forest.shape,1),
+        generate_noise_2d(forest.shape,4),
+        generate_noise_2d(forest.shape,8),
+        generate_noise_2d(forest.shape,16),
+        ]
+    noise_grid = sum([((l+1)/2)**2 for l in noise_layers])
     for x, y in generate_grid_coordinates(forest):
-        noise_is_high = (noise_grid[y][x] / 2 + 0.5) < (tree_density)
+        noise_is_high = (noise_grid[y][x]) > (tree_density)
         if noise_is_high:
             forest[y][x] = CellStates.tree.value
         else:

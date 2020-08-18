@@ -4,9 +4,9 @@ import enum
 import copy
 import math
 import numpy as np
+from opensimplex import OpenSimplex
 
-
-class CellStates ( enum.Enum ):
+class CellStates(enum.Enum):
     pond = 0
     tree = 1
     ash = 3
@@ -16,35 +16,16 @@ class CellStates ( enum.Enum ):
 adjacent_offsets = [(-1, 1), (0, 1), (1, 1), (-1, 0), (0, 0), (1, 0), (-1, -1),
                     (0, -1), (1, -1)]
 
-
-
-def generate_perlin_noise_2d(shape, res,frequency):
-    """https://pvigier.github.io/2018/06/13/perlin-noise-numpy.html"""
-    def f(t):
-        t = t*frequency
-        return 6 * t ** 5 - 15 * t ** 4 + 10 * t ** 3
-    
-    delta = (res[0] / shape[0], res[1] / shape[1])
-    d = (shape[0] // res[0], shape[1] // res[1])
-    grid = np.mgrid[0:res[0]:delta[0],0:res[1]:delta[1]].transpose(1, 2, 0) % 1
-    # Gradients
-    angles = 2 * np.pi * np.random.rand(res[0] + 1, res[1] + 1)
-    gradients = np.dstack((np.cos(angles), np.sin(angles)))
-    g00 = gradients[0:-1,0:-1].repeat(d[0], 0).repeat(d[1], 1)
-    g10 = gradients[1:,0:-1].repeat(d[0], 0).repeat(d[1], 1)
-    g01 = gradients[0:-1,1:].repeat(d[0], 0).repeat(d[1], 1)
-    g11 = gradients[1:,1:].repeat(d[0], 0).repeat(d[1], 1)
-    # Ramps
-    n00 = np.sum(grid * g00, 2)
-    n10 = np.sum(np.dstack((grid[:,:,0] - 1, grid[:,:,1])) * g10, 2)
-    n01 = np.sum(np.dstack((grid[:,:,0], grid[:,:,1] - 1)) * g01, 2)
-    n11 = np.sum(np.dstack((grid[:,:,0] - 1, grid[:,:,1] - 1)) * g11, 2)
-    # Interpolation
-    t = f(grid)
-    n0 = n00 * (1 - t[:,:,0]) + t[:,:,0] * n10
-    n1 = n01 * (1 - t[:,:,0]) + t[:,:,0] * n11
-    return np.sqrt(2) * ((1 - t[:,:,1]) * n0 + t[:,:,1] * n1)
-
+def generate_noise_2d(shape):
+    width = shape[1]
+    height = shape[0]
+    simplex = OpenSimplex(seed=random.randrange(0,2048))
+    feature_size = 4
+    arr = np.ones((width,height))
+    for y in range(height):
+        for x in range(width):
+            arr[y,x] = simplex.noise2d(x / feature_size,y / feature_size)
+    return arr
 
 class SimulationState:
     def __init__(self, x: int=10, y: int=10, tree_density=0.5, **kwargs):
@@ -111,7 +92,7 @@ def generate_grid_coordinates(arr: np.array):
 def generate_forest(x, y, tree_density=0.8, **kwargs):
     available_states = [CellStates.tree, CellStates.pond]
     forest = np.zeros((y, x))
-    noise_grid = generate_perlin_noise_2d((x,y),(15,15),1)
+    noise_grid = generate_noise_2d(forest.shape)
     for x, y in generate_grid_coordinates(forest):
         noise_is_high = (noise_grid[y][x] / 2 + 0.5) < (tree_density)
         if noise_is_high:
@@ -134,7 +115,7 @@ def set_fire(forest):
 def print_state(f):
     for row in f:
         for cell in row:
-            print(CellStates(cell).name, end='')
+            print(CellStates(cell).name, end = '')
         print()
 
 

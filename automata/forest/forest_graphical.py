@@ -47,7 +47,7 @@ class Game(arcade.Window):
 
     def setup(self):
         self.simulation_parameters = dict(
-            tree_density=random.random(),
+            tree_density=random.random()*0.25 + 0.5,
             spread_chance=random.random() * 0.9,
             sustain_chance=random.random()/2,
             reignite_chance=random.random() / 5)

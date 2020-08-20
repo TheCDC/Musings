@@ -34,7 +34,6 @@ def generate_noise_2d(shape,feature_size=4) -> np.array:
 class SimulationState:
     def __init__(self, x: int=10, y: int=10, tree_density=0.5,):
         self.state :np.array = set_fire(generate_forest(x, y, tree_density))
-        self.touched_coordinates :Set[Tuple[int,int]] = set(generate_grid_coordinates(self.state))
 
     def step(self,
              chance_spread_fire_to_tree: float=0.75,
@@ -42,8 +41,6 @@ class SimulationState:
              chance_spread_fire_to_ash: float=0.01,
              **kwargs):
         next_frame_buffer = np.copy(self.state)
-        last_touched_coordinates = self.touched_coordinates
-        self.touched_coordinates = set()
         # print((last_touched_coordinates))
         # Loop over each cell and check its neighbors to generate the next
         # start by decomposing the state into layers
@@ -53,15 +50,17 @@ class SimulationState:
         pond = self.state == CellStates.pond.value
 
         has_fire_neighbors = convolve(fire,KERNEL_IMMEDIATE_NEIGHBORS,mode="constant")
-        becomes_fire = has_fire_neighbors * (np.random.random_sample(self.state.shape) <= chance_spread_fire_to_tree) * trees
+        tree_becomes_fire = has_fire_neighbors * (np.random.random_sample(self.state.shape) <= chance_spread_fire_to_tree) * trees
+        ash_becomes_fire = has_fire_neighbors * (np.random.random_sample(self.state.shape) <= chance_spread_fire_to_ash) * ash
 
-        becomes_ash = np.logical_and(fire, becomes_fire == 0) #was fire and is not about to become fire
-        final = (trees ^ becomes_fire) + becomes_fire * CellStates.fire.value
+        fire_becomes_ash = np.logical_and(fire, tree_becomes_fire == 0) #was fire and is not about to become fire
+        final = (trees ^ tree_becomes_fire) + tree_becomes_fire * CellStates.fire.value
         
-        stays_fire = fire * (np.random.random_sample(self.state.shape) <= chance_fire_sustain)
-        overwrite_with_nonzero(next_frame_buffer, becomes_fire * CellStates.fire.value)
-        overwrite_with_nonzero(next_frame_buffer, becomes_ash * CellStates.ash.value)
-        overwrite_with_nonzero(next_frame_buffer, stays_fire * CellStates.fire.value)
+        fire_becomes_fire = fire * (np.random.random_sample(self.state.shape) <= chance_fire_sustain)
+        overwrite_with_nonzero(next_frame_buffer, tree_becomes_fire * CellStates.fire.value)
+        overwrite_with_nonzero(next_frame_buffer, fire_becomes_ash * CellStates.ash.value)
+        overwrite_with_nonzero(next_frame_buffer, fire_becomes_fire * CellStates.fire.value)
+        overwrite_with_nonzero(next_frame_buffer, ash_becomes_fire * CellStates.fire.value)
         self.state = next_frame_buffer
         return self.state
 

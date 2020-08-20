@@ -4,15 +4,16 @@ import enum
 import copy
 import math
 import numpy as np
+
 from opensimplex import OpenSimplex
 from typing import Generator, Tuple, Set
 from scipy.ndimage import convolve
 
 KERNEL_IMMEDIATE_NEIGHBORS = np.array([[1,1,1],[1,0,1],[1,1,1]])
 
-class CellStates(enum.Enum):
-    pond = 0
-    tree = 1
+class CellStates ( enum.Enum ):
+    pond = 1
+    tree = 2
     ash = 3
     fire = 4
 
@@ -40,18 +41,35 @@ class SimulationState:
              chance_fire_sustain: float=0.25,
              chance_spread_fire_to_ash: float=0.01,
              **kwargs):
-        next_frame = np.copy(self.state)
+        next_frame_buffer = np.copy(self.state)
         last_touched_coordinates = self.touched_coordinates
         self.touched_coordinates = set()
         # print((last_touched_coordinates))
         # Loop over each cell and check its neighbors to generate the next
-        trees = self.state == CellStates.tree
-        fire = self.state == CellStates.fire
-        ash = self.state == CellStates.ash
-        fire_neighbors = convolve(fire,KERNEL_IMMEDIATE_NEIGHBORS,mode="constant")
-        
-        return next_frame
+        # start by decomposing the state into layers
+        trees = self.state == CellStates.tree.value
+        fire = self.state == CellStates.fire.value
+        ash = self.state == CellStates.ash.value
+        pond = self.state == CellStates.pond.value
 
+        has_fire_neighbors = convolve(fire,KERNEL_IMMEDIATE_NEIGHBORS,mode="constant")
+        becomes_fire = has_fire_neighbors * (np.random.random_sample(self.state.shape) <= chance_spread_fire_to_tree) * trees
+
+        becomes_ash = np.logical_and(fire, becomes_fire == 0) #was fire and is not about to become fire
+        final = (trees ^ becomes_fire) + becomes_fire * CellStates.fire.value
+        
+        stays_fire = fire * (np.random.random_sample(self.state.shape) <= chance_fire_sustain)
+        overwrite_with_nonzero(next_frame_buffer, becomes_fire * CellStates.fire.value)
+        overwrite_with_nonzero(next_frame_buffer, becomes_ash * CellStates.ash.value)
+        overwrite_with_nonzero(next_frame_buffer, stays_fire * CellStates.fire.value)
+        self.state = next_frame_buffer
+        return self.state
+
+def overwrite_with_nonzero(bottom:np.array,top:np.array) -> None:
+    to_change = top > 0
+    bottom[to_change] = 0
+    bottom += top
+    return bottom
 
 def generate_grid_coordinates(arr: np.array) -> Generator[Tuple[int],None,None]:
     for y in range(arr.shape[0]):

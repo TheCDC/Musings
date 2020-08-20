@@ -13,6 +13,7 @@ state_to_color = {
     forest.CellStates.fire.value: arcade.color.RED_ORANGE,
     forest.CellStates.tree.value: arcade.color.GUPPIE_GREEN,
     forest.CellStates.pond.value: (40, 122, 255),
+    0: arcade.color.YELLOW,
 }
 
 
@@ -27,14 +28,14 @@ def generate_cell_shape(x, y, color, cell_height=CELL_HEIGHT):
     return sprite
 
 
-class Game(arcade.Window):
+class Game ( arcade.Window ):
     def __init__(self, window_height, cell_height):
         super().__init__(width=window_height * cell_height,
             height=window_height * cell_height,
             title=f'Forest Fire {window_height}x{window_height}',
             resizable=False,
             antialiasing=False,)
-        self.set_update_rate(1 / 16)
+        self.set_update_rate(1 / 60)
         self.simulation_height = window_height
         self.cell_height = cell_height
         self.simulation_parameters = None
@@ -101,6 +102,7 @@ class Game(arcade.Window):
                 if new_val != prev_val:
                     # changing colors is expensive, so only do it when
                     # necessary
+                    
                     self.shapes_grid[y][x].color = state_to_color[cell]
                 else:
                     # cell state unchanged
@@ -122,11 +124,11 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--height',
     type=int,
     help="Simulation height (cells)",
-    default=5,)
+    default=100,)
 parser.add_argument('--cell_height',
     type=int,
     help='Cell height (pixels)',
-    default=10,)
+    default=7,)
 
 
 def main():

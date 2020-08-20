@@ -47,7 +47,9 @@ class SimulationState:
         # Loop over each cell and check its neighbors to generate the next
         trees = self.state == CellStates.tree
         fire = self.state == CellStates.fire
-
+        ash = self.state == CellStates.ash
+        fire_neighbors = convolve(fire,KERNEL_IMMEDIATE_NEIGHBORS,mode="constant")
+        
         return next_frame
 
 

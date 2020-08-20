@@ -5,7 +5,7 @@ import copy
 import math
 import numpy as np
 from opensimplex import OpenSimplex
-
+from typing import Generator, Tuple
 class CellStates(enum.Enum):
     pond = 0
     tree = 1
@@ -16,7 +16,7 @@ class CellStates(enum.Enum):
 adjacent_offsets = [(-1, 1), (0, 1), (1, 1), (-1, 0), (0, 0), (1, 0), (-1, -1),
                     (0, -1), (1, -1)]
 
-def generate_noise_2d(shape,feature_size=4)-> np.array:
+def generate_noise_2d(shape,feature_size=4) -> np.array:
     width = shape[1]
     height = shape[0]
     simplex = OpenSimplex(seed=random.randrange(0,2048))
@@ -40,6 +40,7 @@ class SimulationState:
         last_touched_coordinates = self.touched_coordinates
         self.touched_coordinates = set()
         # print((last_touched_coordinates))
+        # Loop over each cell and check its neighbors to generate the next state
         for x, y in last_touched_coordinates:
             did_touch_cell = False
             cell = self.state[y][x]
@@ -82,22 +83,20 @@ class SimulationState:
         return next_frame
 
 
-def generate_grid_coordinates(arr: np.array):
+def generate_grid_coordinates(arr: np.array) -> Generator[Tuple[int],None,None]:
     for y in range(arr.shape[0]):
         for x in range(arr.shape[1]):
             yield x, y
 
 
-def generate_forest(x, y, tree_density=0.8, **kwargs):
+def generate_forest(x, y, tree_density=0.8, **kwargs) -> np.array:
     available_states = [CellStates.tree, CellStates.pond]
     forest = np.zeros((y, x))
     noise_layers = [
-        #generate_noise_2d(forest.shape,1),
         generate_noise_2d(forest.shape,4),
         generate_noise_2d(forest.shape,8),
-        generate_noise_2d(forest.shape,16),
-        ]
-    noise_grid = sum([((l+1)/2)**2 for l in noise_layers])
+        generate_noise_2d(forest.shape,64),]
+    noise_grid = sum([((l + 1) / 2) ** 2 for l in noise_layers])
     for x, y in generate_grid_coordinates(forest):
         noise_is_high = (noise_grid[y][x]) > (tree_density)
         if noise_is_high:
@@ -124,51 +123,13 @@ def print_state(f):
         print()
 
 
-def next_state(forest,
-               spread_chance: float=0.75,
-               sustain_chance: float=0.25,
-               reignite_chance: float=0.01,
-               **kwargs):
-
-    next_frame = np.copy(forest)
-    for y in range(len(forest)):
-        for x in range(len(forest[0])):
-            cell = forest[y][x]
-            neighbors = set()
-            for offset in adjacent_offsets:
-                if x + offset[0] < 0 or y + offset[1] < 0:
-                    continue
-                try:
-                    neighbors.add(forest[y + offset[1]][x + offset[0]])
-                except IndexError:
-                    continue
-
-            if cell == CellStates.tree.value:
-                if CellStates.fire.value in neighbors:
-                    if random.random() <= spread_chance:
-                        next_frame[y][x] = CellStates.fire.value
-
-            elif cell == CellStates.ash.value:
-                if (CellStates.fire.value in neighbors) and random.random() <= reignite_chance:
-                    next_frame[y][x] = CellStates.fire.value
-
-            elif cell == CellStates.fire.value:
-                if (CellStates.tree.value in neighbors) and random.random() <= sustain_chance:
-                    next_frame[y][x] = CellStates.fire.value
-                else:
-                    next_frame[y][x] = CellStates.ash.value
-
-    return next_frame
-
 
 def main():
-    f = generate_forest(10, 10)
-    print_state(f)
-    f = set_fire(f)
-    print_state(f)
+    sim :SimulationState = SimulationState(10,10)
+    
     for i in range(10):
-        f = next_state(f)
-        print_state(f)
+        sim.step()
+        print_state(sim.state)
         print('===========')
 
 

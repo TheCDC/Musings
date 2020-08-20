@@ -5,7 +5,11 @@ import copy
 import math
 import numpy as np
 from opensimplex import OpenSimplex
-from typing import Generator, Tuple
+from typing import Generator, Tuple, Set
+from scipy.ndimage import convolve
+
+KERNEL_IMMEDIATE_NEIGHBORS = np.array([[1,1,1],[1,0,1],[1,1,1]])
+
 class CellStates(enum.Enum):
     pond = 0
     tree = 1
@@ -28,57 +32,21 @@ def generate_noise_2d(shape,feature_size=4) -> np.array:
 
 class SimulationState:
     def __init__(self, x: int=10, y: int=10, tree_density=0.5,):
-        self.state = set_fire(generate_forest(x, y, tree_density))
-        self.touched_coordinates = set(generate_grid_coordinates(self.state))
+        self.state :np.array = set_fire(generate_forest(x, y, tree_density))
+        self.touched_coordinates :Set[Tuple[int,int]] = set(generate_grid_coordinates(self.state))
 
     def step(self,
              chance_spread_fire_to_tree: float=0.75,
              chance_fire_sustain: float=0.25,
-             chance_spread_fire_to_ash: float=0.01,):
+             chance_spread_fire_to_ash: float=0.01,
+             **kwargs):
         next_frame = np.copy(self.state)
         last_touched_coordinates = self.touched_coordinates
         self.touched_coordinates = set()
         # print((last_touched_coordinates))
         # Loop over each cell and check its neighbors to generate the next
-        # state
-        for x, y in last_touched_coordinates:
-            did_touch_cell = False
-            cell = self.state[y][x]
-            neighbors = set()
-            neighbor_coords = list()
-            for offset in adjacent_offsets:
-                if x + offset[0] < 0 or y + offset[1] < 0:
-                    continue
-                try:
-                    neighbors.add(self.state[y + offset[1]][x + offset[0]])
-                    neighbor_coords.append((x + offset[0], y + offset[1]))
-
-                except IndexError:
-                    continue
-            if cell == CellStates.tree.value:
-                if CellStates.fire.value in neighbors:
-                    if random.random() <= chance_spread_fire_to_tree:
-                        next_frame[y][x] = CellStates.fire.value
-
-            elif cell == CellStates.ash.value:
-                if (CellStates.fire.value in neighbors) and random.random() <= chance_spread_fire_to_ash:
-                    next_frame[y][x] = CellStates.fire.value
-                    did_touch_cell = True
-
-            elif cell == CellStates.fire.value:
-                did_touch_cell = True
-                # add all neighbors to touched coordinates
-                for c in neighbor_coords:
-                    self.touched_coordinates.add(c)
-                if random.random() <= chance_fire_sustain:
-                    next_frame[y][x] = CellStates.fire.value
-
-                else:
-                    next_frame[y][x] = CellStates.ash.value
-            if did_touch_cell:
-                # cache coordinates of all updated cells
-                self.touched_coordinates.add((x, y))
-        self.state = next_frame
+        trees = self.state == CellStates.tree
+        fire = self.state == CellStates.fire
 
         return next_frame
 

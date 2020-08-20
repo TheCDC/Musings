@@ -19,26 +19,22 @@ state_to_color = {
 def generate_cell_shape(x, y, color, cell_height=CELL_HEIGHT):
     xx = x * cell_height + cell_height / 2
     yy = y * cell_height + cell_height / 2
-    sprite = arcade.Sprite(
-        filename='pixel.png',
+    sprite = arcade.Sprite(filename='pixel.png',
         center_x=xx,
         center_y=yy,
-        scale=cell_height,
-    )
+        scale=cell_height,)
     sprite.color = color
     return sprite
 
 
 class Game(arcade.Window):
     def __init__(self, window_height, cell_height):
-        super().__init__(
-            width=window_height * cell_height,
+        super().__init__(width=window_height * cell_height,
             height=window_height * cell_height,
             title=f'Forest Fire {window_height}x{window_height}',
             resizable=False,
-            antialiasing=False,
-        )
-        self.set_update_rate(1/16)
+            antialiasing=False,)
+        self.set_update_rate(1 / 16)
         self.simulation_height = window_height
         self.cell_height = cell_height
         self.simulation_parameters = None
@@ -46,14 +42,11 @@ class Game(arcade.Window):
         self.previous_state = None
 
     def setup(self):
-        self.simulation_parameters = dict(
-            tree_density=random.random(),
-            spread_chance=random.random() * 0.9,
-            sustain_chance=random.random()/2,
-            reignite_chance=random.random() / 5)
-        self.simulation: forest.SimulationState = forest.SimulationState(
-            self.simulation_height, self.simulation_height,
-            **self.simulation_parameters)
+        self.simulation_parameters = dict(tree_density=random.random(),
+            chance_spread_fire_to_tree=random.random() * 0.9,
+            chance_fire_sustain=random.random() / 2,
+            chance_spread_fire_to_ash=random.random() / 5)
+        self.simulation : forest.SimulationState = forest.SimulationState(self.simulation_height, self.simulation_height)
         self.previous_state = self.simulation
 
         self.shapes_grid = list()
@@ -79,20 +72,16 @@ class Game(arcade.Window):
         start_time = int(round(time.time() * 1000))
         arcade.start_render()
         self.sprites_list.draw()
-        status_str = '\n'.join([
-            f'density={self.simulation_parameters["tree_density"]:.2f}',
-            f'P(spread)={self.simulation_parameters["spread_chance"]:.2f}',
-            f'P(sustain)={self.simulation_parameters["sustain_chance"]:.2f}',
-            f'P(reignite)={self.simulation_parameters["reignite_chance"]:.2f}',
-        ])
-        arcade.draw_text(
-            status_str,
+        status_str = '\n'.join([f'density={self.simulation_parameters["tree_density"]:.2f}',
+            f'P(spread)={self.simulation_parameters["chance_spread_fire_to_tree"]:.2f}',
+            f'P(sustain)={self.simulation_parameters["chance_fire_sustain"]:.2f}',
+            f'P(reignite)={self.simulation_parameters["chance_spread_fire_to_ash"]:.2f}',])
+        arcade.draw_text(status_str,
             10,
             20,
             arcade.color.BLACK,
             18,
-            bold=False,
-        )
+            bold=False,)
         end_time = int(round(time.time() * 1000))
         total_time = end_time - start_time
         # print('draw', total_time)
@@ -110,20 +99,19 @@ class Game(arcade.Window):
                 prev_val = self.previous_state[y][x]
                 new_val = self.simulation.state[y][x]
                 if new_val != prev_val:
-                    # changing colors is expensive, so only do it when necessary
+                    # changing colors is expensive, so only do it when
+                    # necessary
                     self.shapes_grid[y][x].color = state_to_color[cell]
                 else:
                     # cell state unchanged
                     if new_val == forest.CellStates.fire.value:
-                        self.shapes_grid[y][x].color = tuple(int(channel*0.75) for channel in self.shapes_grid[y][x].color)
+                        self.shapes_grid[y][x].color = tuple(int(channel * 0.75) for channel in self.shapes_grid[y][x].color)
 
         end_time = int(round(time.time() * 1000))
         total_time = end_time - start_time
         # print('update', total_time)
-        if 0 in [
-                counts[forest.CellStates.fire.value],
-                counts[forest.CellStates.tree.value]
-        ]:
+        if 0 in [counts[forest.CellStates.fire.value],
+                counts[forest.CellStates.tree.value]]:
             self.setup()
 
     def on_mouse_press(self, x, y, button, modifiers):
@@ -131,18 +119,14 @@ class Game(arcade.Window):
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument(
-    '--height',
+parser.add_argument('--height',
     type=int,
     help="Simulation height (cells)",
-    default=75,
-)
-parser.add_argument(
-    '--cell_height',
+    default=75,)
+parser.add_argument('--cell_height',
     type=int,
     help='Cell height (pixels)',
-    default=10,
-)
+    default=10,)
 
 
 def main():

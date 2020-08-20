@@ -27,20 +27,20 @@ def generate_noise_2d(shape,feature_size=4) -> np.array:
     return arr
 
 class SimulationState:
-    def __init__(self, x: int=10, y: int=10, tree_density=0.5, **kwargs):
+    def __init__(self, x: int=10, y: int=10, tree_density=0.5,):
         self.state = set_fire(generate_forest(x, y, tree_density))
         self.touched_coordinates = set(generate_grid_coordinates(self.state))
 
     def step(self,
-             spread_chance: float=0.75,
-             sustain_chance: float=0.25,
-             reignite_chance: float=0.01,
-             **kwargs):
+             chance_spread_fire_to_tree: float=0.75,
+             chance_fire_sustain: float=0.25,
+             chance_spread_fire_to_ash: float=0.01,):
         next_frame = np.copy(self.state)
         last_touched_coordinates = self.touched_coordinates
         self.touched_coordinates = set()
         # print((last_touched_coordinates))
-        # Loop over each cell and check its neighbors to generate the next state
+        # Loop over each cell and check its neighbors to generate the next
+        # state
         for x, y in last_touched_coordinates:
             did_touch_cell = False
             cell = self.state[y][x]
@@ -57,11 +57,11 @@ class SimulationState:
                     continue
             if cell == CellStates.tree.value:
                 if CellStates.fire.value in neighbors:
-                    if random.random() <= spread_chance:
+                    if random.random() <= chance_spread_fire_to_tree:
                         next_frame[y][x] = CellStates.fire.value
 
             elif cell == CellStates.ash.value:
-                if (CellStates.fire.value in neighbors) and random.random() <= reignite_chance:
+                if (CellStates.fire.value in neighbors) and random.random() <= chance_spread_fire_to_ash:
                     next_frame[y][x] = CellStates.fire.value
                     did_touch_cell = True
 
@@ -70,7 +70,7 @@ class SimulationState:
                 # add all neighbors to touched coordinates
                 for c in neighbor_coords:
                     self.touched_coordinates.add(c)
-                if random.random() <= sustain_chance:
+                if random.random() <= chance_fire_sustain:
                     next_frame[y][x] = CellStates.fire.value
 
                 else:
@@ -92,8 +92,7 @@ def generate_grid_coordinates(arr: np.array) -> Generator[Tuple[int],None,None]:
 def generate_forest(x, y, tree_density=0.8, **kwargs) -> np.array:
     available_states = [CellStates.tree, CellStates.pond]
     forest = np.zeros((y, x))
-    noise_layers = [
-        generate_noise_2d(forest.shape,4),
+    noise_layers = [generate_noise_2d(forest.shape,4),
         generate_noise_2d(forest.shape,8),
         generate_noise_2d(forest.shape,64),]
     noise_grid = sum([((l + 1) / 2) ** 2 for l in noise_layers])

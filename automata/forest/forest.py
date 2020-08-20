@@ -9,9 +9,11 @@ from opensimplex import OpenSimplex
 from typing import Generator, Tuple, Set
 from scipy.ndimage import convolve
 
-KERNEL_IMMEDIATE_NEIGHBORS = np.array([[1,1,1],[1,0,1],[1,1,1]])
+KERNEL_IMMEDIATE_NEIGHBORS = np.array([[1,1,1],
+                                       [1,0,1],
+                                       [1,1,1]])
 
-class CellStates ( enum.Enum ):
+class CellStates(enum.Enum):
     pond = 1
     tree = 2
     ash = 3
@@ -34,7 +36,12 @@ def generate_noise_2d(shape,feature_size=4) -> np.array:
 class SimulationState:
     def __init__(self, x: int=10, y: int=10, tree_density=0.5,):
         self.state :np.array = set_fire(generate_forest(x, y, tree_density))
-
+    @property
+    def state(self):
+        return self._state
+    @state.setter
+    def state(self,value):
+        self._state = value
     def step(self,
              chance_spread_fire_to_tree: float=0.75,
              chance_fire_sustain: float=0.25,
@@ -82,7 +89,7 @@ def generate_forest(x, y, tree_density=0.8, **kwargs) -> np.array:
     noise_layers = [generate_noise_2d(forest.shape,4),
         generate_noise_2d(forest.shape,8),
         generate_noise_2d(forest.shape,64),]
-    noise_grid = sum([((l + 1) / 2) ** 2 for l in noise_layers])
+    noise_grid = sum([((l + 1) / 2) ** 2 for l in noise_layers]) - (generate_noise_2d(forest.shape,32))
     for x, y in generate_grid_coordinates(forest):
         noise_is_high = (noise_grid[y][x]) > (tree_density)
         if noise_is_high:

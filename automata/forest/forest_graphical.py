@@ -5,6 +5,8 @@ import copy
 import random
 import argparse
 from collections import Counter
+from scipy.ndimage import convolve
+import numpy as np
 SIMULATION_DIMENSIONS = (50, 50)
 CELL_HEIGHT = 15
 
@@ -16,7 +18,11 @@ state_to_color = {
     0: arcade.color.YELLOW,
 }
 
-
+KERNEL_WATER_DEPTH = np.array([[0,1,1,1,0],
+    [1,1,1,1,1],
+    [1,1,0,1,1],
+    [1,1,1,1,1],
+    [0,1,1,1,0],])
 def generate_cell_shape(x, y, color, cell_height=CELL_HEIGHT):
     xx = x * cell_height + cell_height / 2
     yy = y * cell_height + cell_height / 2
@@ -28,14 +34,14 @@ def generate_cell_shape(x, y, color, cell_height=CELL_HEIGHT):
     return sprite
 
 
-class Game ( arcade.Window ):
+class Game(arcade.Window):
     def __init__(self, window_height, cell_height):
         super().__init__(width=window_height * cell_height,
             height=window_height * cell_height,
             title=f'Forest Fire {window_height}x{window_height}',
             resizable=False,
             antialiasing=False,)
-        self.set_update_rate(1 / 60)
+        self.set_update_rate(1 / 30)
         self.simulation_height = window_height
         self.cell_height = cell_height
         self.simulation_parameters = None
@@ -45,13 +51,15 @@ class Game ( arcade.Window ):
     def setup(self):
         self.simulation_parameters = dict(tree_density=random.random(),
             chance_spread_fire_to_tree=random.random() * 0.9,
-            chance_fire_sustain=random.random() / 2,
+            chance_fire_sustain=random.random(),
             chance_spread_fire_to_ash=random.random() / 5)
         self.simulation : forest.SimulationState = forest.SimulationState(self.simulation_height, self.simulation_height)
         self.previous_state = self.simulation
 
         self.shapes_grid = list()
         self.sprites_list = arcade.SpriteList()
+        num_water_neighbors = convolve((self.simulation.state == forest.CellStates.pond.value).astype(int), KERNEL_WATER_DEPTH,mode='constant')
+
         arcade.set_background_color(arcade.color.WHITE)
 
         start_time = int(round(time.time() * 1000))
@@ -59,7 +67,14 @@ class Game ( arcade.Window ):
         for y, row in enumerate(self.simulation.state):
             newrow = list()
             for x, cell in enumerate(row):
-                shape = generate_cell_shape(x, y, state_to_color[cell],
+                color = state_to_color[cell]
+                sum_pond_neighbors = num_water_neighbors[y][x]
+                if(cell == forest.CellStates.pond.value):
+                    color = [int(channel * 0.95 ** (sum_pond_neighbors)) for channel in color]
+                elif cell == forest.CellStates.tree.value:
+                    color = [int(channel * 0.98 ** (sum_pond_neighbors)) for channel in color]
+
+                shape = generate_cell_shape(x, y, color,
                                             self.cell_height)
                 newrow.append(shape)
                 self.sprites_list.append(shape)
@@ -92,7 +107,6 @@ class Game ( arcade.Window ):
         self.previous_state = self.simulation.state
         self.simulation.step(**self.simulation_parameters)
         self.state = self.simulation.state
-
         counts = Counter()
         for y, row in enumerate(self.simulation.state):
             counts.update(row)
@@ -124,7 +138,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--height',
     type=int,
     help="Simulation height (cells)",
-    default=100,)
+    default=75,)
 parser.add_argument('--cell_height',
     type=int,
     help='Cell height (pixels)',

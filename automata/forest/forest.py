@@ -63,7 +63,7 @@ class SimulationState:
         fire_becomes_ash = np.logical_and(fire, tree_becomes_fire == 0) #was fire and is not about to become fire
         final = (trees ^ tree_becomes_fire) + tree_becomes_fire * CellStates.fire.value
         
-        fire_becomes_fire = fire * (np.random.random_sample(self.state.shape) <= chance_fire_sustain)
+        fire_becomes_fire = has_fire_neighbors * fire * (np.random.random_sample(self.state.shape) <= chance_fire_sustain)
         overwrite_with_nonzero(next_frame_buffer, tree_becomes_fire * CellStates.fire.value)
         overwrite_with_nonzero(next_frame_buffer, fire_becomes_ash * CellStates.ash.value)
         overwrite_with_nonzero(next_frame_buffer, fire_becomes_fire * CellStates.fire.value)

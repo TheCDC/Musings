@@ -18,11 +18,11 @@ state_to_color = {
     0: arcade.color.YELLOW,
 }
 
-KERNEL_WATER_DEPTH = np.array([[0,1,1,1,0],
-    [1,1,1,1,1],
+KERNEL_WATER_DEPTH = np.array([[0,0.5,1,0.5,0],
+    [0.5,1,1,1,0.5],
     [1,1,0,1,1],
-    [1,1,1,1,1],
-    [0,1,1,1,0],])
+    [0.5,1,1,1,0.5],
+    [0,0.5,1,0.5,0],])
 def generate_cell_shape(x, y, color, cell_height=CELL_HEIGHT):
     xx = x * cell_height + cell_height / 2
     yy = y * cell_height + cell_height / 2
@@ -51,7 +51,7 @@ class Game(arcade.Window):
     def setup(self):
         self.simulation_parameters = dict(tree_density=random.random(),
             chance_spread_fire_to_tree=random.random() * 0.9,
-            chance_fire_sustain=random.random(),
+            chance_fire_sustain=random.random()/2,
             chance_spread_fire_to_ash=random.random() / 5)
         self.simulation : forest.SimulationState = forest.SimulationState(self.simulation_height, self.simulation_height)
         self.previous_state = self.simulation
@@ -72,7 +72,7 @@ class Game(arcade.Window):
                 if(cell == forest.CellStates.pond.value):
                     color = [int(channel * 0.95 ** (sum_pond_neighbors)) for channel in color]
                 elif cell == forest.CellStates.tree.value:
-                    color = [int(channel * 0.98 ** (sum_pond_neighbors)) for channel in color]
+                    color = [int(channel * 0.90 ** (sum_pond_neighbors)) for channel in color]
 
                 shape = generate_cell_shape(x, y, color,
                                             self.cell_height)

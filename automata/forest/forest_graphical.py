@@ -9,12 +9,12 @@ from scipy.ndimage import convolve
 import numpy as np
 SIMULATION_DIMENSIONS = (50, 50)
 CELL_HEIGHT = 15
-
+WHITE = np.array(arcade.color.WHITE)
 state_to_color = {
-    forest.CellStates.ash.value: arcade.color.ASH_GREY,
-    forest.CellStates.fire.value: arcade.color.RED_ORANGE,
-    forest.CellStates.tree.value: arcade.color.GUPPIE_GREEN,
-    forest.CellStates.pond.value: (40, 122, 255),
+    forest.CellStates.ash.value: np.array(arcade.color.ASH_GREY),
+    forest.CellStates.fire.value: np.array(arcade.color.RED_ORANGE),
+    forest.CellStates.tree.value: np.array(arcade.color.FOREST_GREEN),
+    forest.CellStates.pond.value: np.array((40, 122, 255)),
     0: arcade.color.YELLOW,
 }
 
@@ -51,7 +51,7 @@ class Game(arcade.Window):
     def setup(self):
         self.simulation_parameters = dict(tree_density=random.random(),
             chance_spread_fire_to_tree=random.random() * 0.9,
-            chance_fire_sustain=random.random()/2,
+            chance_fire_sustain=random.random() / 2,
             chance_spread_fire_to_ash=random.random() / 5)
         self.simulation : forest.SimulationState = forest.SimulationState(self.simulation_height, self.simulation_height)
         self.previous_state = self.simulation
@@ -59,7 +59,9 @@ class Game(arcade.Window):
         self.shapes_grid = list()
         self.sprites_list = arcade.SpriteList()
         num_water_neighbors = convolve((self.simulation.state == forest.CellStates.pond.value).astype(int), KERNEL_WATER_DEPTH,mode='constant')
-
+        altitude_steps = 8
+        altitude_map = (np.ceil(((forest.generate_noise_2d(self.simulation.state.shape,32) + 1) / 2) ** 2 * altitude_steps) / altitude_steps)
+        amax = altitude_map.max()
         arcade.set_background_color(arcade.color.WHITE)
 
         start_time = int(round(time.time() * 1000))
@@ -67,14 +69,23 @@ class Game(arcade.Window):
         for y, row in enumerate(self.simulation.state):
             newrow = list()
             for x, cell in enumerate(row):
-                color = state_to_color[cell]
+                color = np.array(state_to_color[cell])
                 sum_pond_neighbors = num_water_neighbors[y][x]
+                cell_altitude = altitude_map[y][x]
                 if(cell == forest.CellStates.pond.value):
-                    color = [int(channel * 0.95 ** (sum_pond_neighbors)) for channel in color]
+                    color = (color * 0.95 ** (sum_pond_neighbors)).astype(int)
+                    pass
                 elif cell == forest.CellStates.tree.value:
-                    color = [int(channel * 0.90 ** (sum_pond_neighbors)) for channel in color]
+                    #make lighter based on altitude
+                    color = (color + cell_altitude * (WHITE - color)).astype(int)
+                    #make darker when near pond
+                    color = (color * 0.95 ** (sum_pond_neighbors * (1 - cell_altitude))).astype(int)
+                color[color > 255] = 255
+                    #color = [min(255,int(channel * 1.05 **
+                    #(altitude_map[y][x]))) for channel in color]
 
-                shape = generate_cell_shape(x, y, color,
+
+                shape = generate_cell_shape(x, y, tuple(color),
                                             self.cell_height)
                 newrow.append(shape)
                 self.sprites_list.append(shape)
@@ -103,7 +114,6 @@ class Game(arcade.Window):
         # print('draw', total_time)
 
     def update(self, delta_time):
-        start_time = int(round(time.time() * 1000))
         self.previous_state = self.simulation.state
         self.simulation.step(**self.simulation_parameters)
         self.state = self.simulation.state
@@ -116,19 +126,17 @@ class Game(arcade.Window):
                 if new_val != prev_val:
                     # changing colors is expensive, so only do it when
                     # necessary
-                    
                     self.shapes_grid[y][x].color = state_to_color[cell]
                 else:
                     # cell state unchanged
                     if new_val == forest.CellStates.fire.value:
                         self.shapes_grid[y][x].color = tuple(int(channel * 0.75) for channel in self.shapes_grid[y][x].color)
 
-        end_time = int(round(time.time() * 1000))
-        total_time = end_time - start_time
         # print('update', total_time)
         if 0 in [counts[forest.CellStates.fire.value],
-                counts[forest.CellStates.tree.value]]:
+                counts[forest.CellStates.tree.value]] or self.simulation.age > 500:
             self.setup()
+        
 
     def on_mouse_press(self, x, y, button, modifiers):
         self.setup()
@@ -138,11 +146,11 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--height',
     type=int,
     help="Simulation height (cells)",
-    default=75,)
+    default=80,)
 parser.add_argument('--cell_height',
     type=int,
     help='Cell height (pixels)',
-    default=7,)
+    default=10,)
 
 
 def main():

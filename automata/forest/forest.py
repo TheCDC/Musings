@@ -36,6 +36,13 @@ def generate_noise_2d(shape,feature_size=4) -> np.array:
 class SimulationState:
     def __init__(self, x: int=10, y: int=10, tree_density=0.5,):
         self.state :np.array = set_fire(generate_forest(x, y, tree_density))
+        self._age = 0
+    @property
+    def age(self):
+        return self._age
+    @age.setter
+    def age(self, value):
+        self._age = value
     @property
     def state(self):
         return self._state
@@ -102,10 +109,12 @@ def generate_forest(x, y, tree_density=0.8, **kwargs) -> np.array:
 def set_fire(forest):
     new_forest = np.copy(forest)
     num_fires = random.randint(1, math.ceil(len(forest) ** (1 / 2)))
-    for _ in range(num_fires):
-        y = random.randrange(len(forest))
-        x = random.randrange(len(forest[y]))
-        new_forest[y][x] = CellStates.fire.value
+    trees = np.where(new_forest == CellStates.tree.value)
+    possible_coordinates = list(zip(*trees)) #convert coordinates from ((x0,x1,...),(y0,y2,...)) to ((x0,y0),(x1,y1))
+    random.shuffle(possible_coordinates)
+    to_set_fire = possible_coordinates[:num_fires]
+    r = tuple(zip(*to_set_fire)) #wrangle coordinates back from ((x0,y0),(x1,y1)) to ((x0,x1,...),(y0,y2,...))
+    new_forest[r] = CellStates.fire.value
     return new_forest
 
 

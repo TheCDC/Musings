@@ -22,7 +22,8 @@ class CellStates(enum.Enum):
 
 adjacent_offsets = [(-1, 1), (0, 1), (1, 1), (-1, 0), (0, 0), (1, 0), (-1, -1),
                     (0, -1), (1, -1)]
-
+def repeated_trials(p_trial,n_trials):
+    return 1 - (1 - p_trial) ** n_trials
 def generate_noise_2d(shape,feature_size=4) -> np.array:
     width = shape[1]
     height = shape[0]
@@ -37,6 +38,7 @@ class SimulationState:
     def __init__(self, x: int=10, y: int=10, tree_density=0.5,):
         self.state :np.array = set_fire(generate_forest(x, y, tree_density))
         self._age = 0
+        self.times_burned = np.ones(self.state.shape)
     @property
     def age(self):
         return self._age
@@ -63,18 +65,20 @@ class SimulationState:
         ash = self.state == CellStates.ash.value
         pond = self.state == CellStates.pond.value
 
-        has_fire_neighbors = convolve(fire,KERNEL_IMMEDIATE_NEIGHBORS,mode="constant")
-        tree_becomes_fire = has_fire_neighbors * (np.random.random_sample(self.state.shape) <= chance_spread_fire_to_tree) * trees
-        ash_becomes_fire = has_fire_neighbors * (np.random.random_sample(self.state.shape) <= chance_spread_fire_to_ash) * ash
+        num_fire_neighbors = convolve(fire,KERNEL_IMMEDIATE_NEIGHBORS,mode="constant") 
+        tree_becomes_fire = (np.random.random_sample(self.state.shape) <= repeated_trials(chance_spread_fire_to_tree, num_fire_neighbors)) * trees
+        ash_becomes_fire = num_fire_neighbors * (np.random.random_sample(self.state.shape) <= (chance_spread_fire_to_ash / self.times_burned)) * ash
 
         fire_becomes_ash = np.logical_and(fire, tree_becomes_fire == 0) #was fire and is not about to become fire
         final = (trees ^ tree_becomes_fire) + tree_becomes_fire * CellStates.fire.value
         
-        fire_becomes_fire = has_fire_neighbors * fire * (np.random.random_sample(self.state.shape) <= chance_fire_sustain)
+        fire_becomes_fire = num_fire_neighbors * fire * (np.random.random_sample(self.state.shape) <= chance_fire_sustain)
         overwrite_with_nonzero(next_frame_buffer, tree_becomes_fire * CellStates.fire.value)
         overwrite_with_nonzero(next_frame_buffer, fire_becomes_ash * CellStates.ash.value)
         overwrite_with_nonzero(next_frame_buffer, fire_becomes_fire * CellStates.fire.value)
         overwrite_with_nonzero(next_frame_buffer, ash_becomes_fire * CellStates.fire.value)
+
+        self.times_burned += next_frame_buffer == CellStates.fire.value
         self.state = next_frame_buffer
         return self.state
 

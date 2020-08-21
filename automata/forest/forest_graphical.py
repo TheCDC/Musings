@@ -50,9 +50,9 @@ class Game(arcade.Window):
 
     def setup(self):
         self.simulation_parameters = dict(tree_density=random.random(),
-            chance_spread_fire_to_tree=random.random() * 0.9,
-            chance_fire_sustain=random.random() / 2,
-            chance_spread_fire_to_ash=random.random() / 5)
+            chance_spread_fire_to_tree=random.random()/2,
+            chance_fire_sustain=random.random(),
+            chance_spread_fire_to_ash=random.random()/2)
         self.simulation : forest.SimulationState = forest.SimulationState(self.simulation_height, self.simulation_height)
         self.previous_state = self.simulation
 
@@ -60,8 +60,8 @@ class Game(arcade.Window):
         self.sprites_list = arcade.SpriteList()
         num_water_neighbors = convolve((self.simulation.state == forest.CellStates.pond.value).astype(int), KERNEL_WATER_DEPTH,mode='constant')
         altitude_steps = 8
-        altitude_components = [
-            #((((forest.generate_noise_2d(self.simulation.state.shape,8) + 1) / 2) ** 4) * 2) - 1,
+        altitude_components = [#((((forest.generate_noise_2d(self.simulation.state.shape,8) + 1) /
+            #2) ** 4) * 2) - 1,
             forest.generate_noise_2d(self.simulation.state.shape,8),
             forest.generate_noise_2d(self.simulation.state.shape,32),
             forest.generate_noise_2d(self.simulation.state.shape,64)]
@@ -85,6 +85,8 @@ class Game(arcade.Window):
                     color = (color + cell_altitude * (WHITE - color)).astype(int)
                     #make darker when near pond
                     color = (color * 0.90 ** (sum_pond_neighbors * (1 - cell_altitude))).astype(int)
+                elif cell == forest.CellStates.ash.value:
+                    color /= self.simulation.times_burned[y][x]
                 color[color > 255] = 255
 
 

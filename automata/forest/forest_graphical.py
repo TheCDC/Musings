@@ -18,11 +18,12 @@ state_to_color = {
     0: arcade.color.YELLOW,
 }
 
-KERNEL_WATER_DEPTH = np.array([[0,0.5,1,0.5,0],
-    [0.5,1,1,1,0.5],
+KERNEL_WATER_DEPTH = np.array([[0,1,1,1,0],
+    [1,1,1,1,1],
     [1,1,0,1,1],
-    [0.5,1,1,1,0.5],
-    [0,0.5,1,0.5,0],])
+    [1,1,1,1,1],
+    [0,1,1,1,0],])
+
 def generate_cell_shape(x, y, color, cell_height=CELL_HEIGHT):
     xx = x * cell_height + cell_height / 2
     yy = y * cell_height + cell_height / 2
@@ -41,18 +42,20 @@ class Game(arcade.Window):
             title=f'Forest Fire {window_height}x{window_height}',
             resizable=False,
             antialiasing=False,)
-        self.set_update_rate(1 / 16)
+        self.set_update_rate(1 / 30)
         self.simulation_height = window_height
         self.cell_height = cell_height
         self.simulation_parameters = None
         self.simulation = None
         self.previous_state = None
+        self.paused :bool = False
 
     def setup(self):
+        self.paused :bool = True
         self.simulation_parameters = dict(tree_density=random.random(),
-            chance_spread_fire_to_tree=random.random()/2,
+            chance_spread_fire_to_tree=random.random() / 2,
             chance_fire_sustain=random.random(),
-            chance_spread_fire_to_ash=random.random()/2)
+            chance_spread_fire_to_ash=random.random() / 2)
         self.simulation : forest.SimulationState = forest.SimulationState(self.simulation_height, self.simulation_height)
         self.previous_state = self.simulation
 
@@ -119,6 +122,8 @@ class Game(arcade.Window):
         # print('draw', total_time)
 
     def update(self, delta_time):
+        if self.paused:
+            return
         self.previous_state = self.simulation.state
         self.simulation.step(**self.simulation_parameters)
         self.state = self.simulation.state
@@ -137,14 +142,11 @@ class Game(arcade.Window):
                     if new_val == forest.CellStates.fire.value:
                         self.shapes_grid[y][x].color = tuple(int(channel * 0.75) for channel in self.shapes_grid[y][x].color)
 
-        # print('update', total_time)
-        if 0 in [counts[forest.CellStates.fire.value],
-                counts[forest.CellStates.tree.value]] or self.simulation.age > 500:
-            self.setup()
-        
-
     def on_mouse_press(self, x, y, button, modifiers):
-        self.setup()
+        if button == arcade.MOUSE_BUTTON_LEFT:
+            self.paused = not self.paused
+        elif button == arcade.MOUSE_BUTTON_RIGHT:
+            self.setup()
 
 
 parser = argparse.ArgumentParser()

@@ -125,7 +125,7 @@ class Game():
         #img =
         #np.resize(np.random.random_sample((self.simulation_height,self.simulation_height,3)),(self.simulation_height
         #* self.cell_height,self.simulation_height * self.cell_height,3))
-        img = zoom(self.color_buffer,(self.cell_height,self.cell_height,1),order=3)
+        img = zoom(self.color_buffer,(self.cell_height,self.cell_height,1),order=0)/255
         img = cv2.cvtColor(img.astype('float32'), cv2.COLOR_RGB2BGR)
         s = img.shape
         #r,g,b = cv2.split(img)
@@ -170,11 +170,11 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--height',
     type=int,
     help="Simulation height (cells)",
-    default=10,)
+    default=150,)
 parser.add_argument('--cell_height',
     type=int,
     help='Cell height (pixels)',
-    default=50,)
+    default=4,)
 
 
 def main():

@@ -5,7 +5,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{cd129311-14d8-4c1d-b834-142b6cb8bd46}</ProjectGuid>
     <ProjectHome />
-    <StartupFile>forest_graphical.py</StartupFile>
+    <StartupFile>forest_cv2.py</StartupFile>
     <SearchPath />
     <WorkingDirectory>.</WorkingDirectory>
     <OutputPath>.</OutputPath>
@@ -27,6 +27,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="forest.py" />
+    <Compile Include="forest_cv2.py" />
     <Compile Include="forest_graphical.py" />
   </ItemGroup>
   <ItemGroup>

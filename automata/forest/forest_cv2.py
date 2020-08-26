@@ -4,7 +4,7 @@ import forest
 import random
 import argparse
 import cv2
-from scipy.ndimage import convolve
+from scipy.ndimage import convolve,zoom
 import numpy as np
 from time import sleep
 
@@ -122,50 +122,59 @@ class Game():
             f'P(sustain)={self.simulation_parameters["chance_fire_sustain"]:.2f}',
             f'P(reignite)={self.simulation_parameters["chance_spread_fire_to_ash"]:.2f}',])
 
-        img = np.random.random_sample((self.simulation_height,self.simulation_height))
+        #img =
+        #np.resize(np.random.random_sample((self.simulation_height,self.simulation_height,3)),(self.simulation_height
+        #* self.cell_height,self.simulation_height * self.cell_height,3))
+        img = zoom(self.color_buffer,(self.cell_height,self.cell_height,1),order=3)
+        img = cv2.cvtColor(img.astype('float32'), cv2.COLOR_RGB2BGR)
+        s = img.shape
+        #r,g,b = cv2.split(img)
+        #img_bgr = cv2.merge([b,g,r])
         cv2.imshow("image", img)
-        cv2.waitKey(20)
+        cv2.waitKey(1)
         end_time = int(round(time.time() * 1000))
         total_time = end_time - start_time
-        # print('draw', total_time)
+        print('draw', total_time)
 
     def update(self, delta_time):
-        if self.paused:
-            return
+   
         self.previous_state = self.simulation.state
         self.simulation.step(**self.simulation_parameters)
         self.state = self.simulation.state
         self.color_buffer = np.zeros((self.state.shape) + (3,))
-        self.color_buffer[self.state == forest.CellStates.tree] = state_to_color[forest.CellStates.tree.value]
-        self.color_buffer[self.state == forest.CellStates.pond] = state_to_color[forest.CellStates.pond.value]
-        self.color_buffer[self.state == forest.CellStates.fire] = state_to_color[forest.CellStates.fire.value]
-        self.color_buffer[self.state == forest.CellStates.ash] = state_to_color[forest.CellStates.fire.ash]
-        for y, row in enumerate(self.simulation.state):
-            for x, cell in enumerate(row):
-                prev_val = self.previous_state[y][x]
-                new_val = self.simulation.state[y][x]
-                new_color = state_to_color[cell]
-                if(cell == forest.CellStates.ash.value):
-                    c_darkness = np.array(arcade.color.ASH_GREY) * 0.90 ** (1 * (self.simulation.times_burned[y][x]))
-                    c_lightness = np.array(arcade.color.ASH_GREY) * (self.altitude_map[y][x])
-                    new_color = color_point_mean(np.array([c_lightness,c_darkness]),weights =np.array([0.4,0.6]))
+        self.color_buffer[self.state == forest.CellStates.tree.value] = state_to_color[forest.CellStates.tree.value]
+        self.color_buffer[self.state == forest.CellStates.pond.value] = state_to_color[forest.CellStates.pond.value]
+        self.color_buffer[self.state == forest.CellStates.fire.value] = state_to_color[forest.CellStates.fire.value]
+        self.color_buffer[self.state == forest.CellStates.ash.value] = state_to_color[forest.CellStates.ash.value]
+        if(np.sum(self.state == forest.CellStates.fire.value) == 0):
+            self.setup()
+
+        #for y, row in enumerate(self.simulation.state):
+        #    for x, cell in enumerate(row):
+        #        prev_val = self.previous_state[y][x]
+        #        new_val = self.simulation.state[y][x]
+        #        new_color = state_to_color[cell]
+        #        if(cell == forest.CellStates.ash.value):
+        #            c_darkness = np.array(arcade.color.ASH_GREY) * 0.90 ** (1
+        #            * (self.simulation.times_burned[y][x]))
+        #            c_lightness = np.array(arcade.color.ASH_GREY) *
+        #            (self.altitude_map[y][x])
+        #            new_color =
+        #            color_point_mean(np.array([c_lightness,c_darkness]),weights
+        #            =np.array([0.4,0.6]))
                         
-                #constrain max color channel value to 255
-                new_color[new_color > 255] = 255
-                self.shapes_grid[y][x].color = new_color.astype(int)
-
-          
-
-
+        #        #constrain max color channel value to 255
+        #        new_color[new_color > 255] = 255
+        #        self.shapes_grid[y][x].color = new_color.astype(int)
 parser = argparse.ArgumentParser()
 parser.add_argument('--height',
     type=int,
     help="Simulation height (cells)",
-    default=80,)
+    default=10,)
 parser.add_argument('--cell_height',
     type=int,
     help='Cell height (pixels)',
-    default=10,)
+    default=50,)
 
 
 def main():
@@ -176,6 +185,7 @@ def main():
     g = Game(args.height, args.cell_height)
     g.setup()
     while True:
+        g.update(0)
         g.on_draw()
 
 

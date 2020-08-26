@@ -7,11 +7,12 @@ import argparse
 from collections import Counter
 from scipy.ndimage import convolve
 import numpy as np
+from typing import Tuple,List
 SIMULATION_DIMENSIONS = (50, 50)
 CELL_HEIGHT = 15
 WHITE = np.array(arcade.color.WHITE)
 state_to_color = {
-    forest.CellStates.ash.value: np.array(arcade.color.ASH_GREY),
+    forest.CellStates.ash.value: np.array(arcade.color.LIGHT_GRAY),
     forest.CellStates.fire.value: np.array(arcade.color.RED_ORANGE),
     forest.CellStates.tree.value: np.array(arcade.color.FOREST_GREEN),
     forest.CellStates.pond.value: np.array((40, 122, 255)),
@@ -34,6 +35,13 @@ def generate_cell_shape(x, y, color, cell_height=CELL_HEIGHT):
     sprite.color = color
     return sprite
 
+def color_point_mean(colors:np.array,weights:np.array=None):
+    if weights is None:
+        weights = np.ones(colors.shape)
+    else:
+        weights = weights.reshape((weights.shape[0],1))
+
+    return sum(colors * weights) / len(colors)
 
 class Game(arcade.Window):
     def __init__(self, window_height, cell_height):
@@ -68,8 +76,8 @@ class Game(arcade.Window):
             forest.generate_noise_2d(self.simulation.state.shape,8),
             forest.generate_noise_2d(self.simulation.state.shape,32),
             forest.generate_noise_2d(self.simulation.state.shape,64)]
-        altitude_map = (np.ceil(((sum(altitude_components) + 1) / 2) ** 2 * altitude_steps) / altitude_steps)
-        amax = altitude_map.max()
+        self.altitude_map = (np.ceil(((sum(altitude_components) + 1) / 2) ** 2 * altitude_steps) / altitude_steps)
+        amax = self.altitude_map.max()
         arcade.set_background_color(arcade.color.WHITE)
 
         start_time = int(round(time.time() * 1000))
@@ -79,7 +87,7 @@ class Game(arcade.Window):
             for x, cell in enumerate(row):
                 color = np.array(state_to_color[cell])
                 sum_pond_neighbors = num_water_neighbors[y][x]
-                cell_altitude = altitude_map[y][x]
+                cell_altitude = self.altitude_map[y][x]
                 if(cell == forest.CellStates.pond.value):
                     color = (color * 0.95 ** (sum_pond_neighbors)).astype(int)
                     pass
@@ -91,6 +99,7 @@ class Game(arcade.Window):
                 elif cell == forest.CellStates.ash.value:
                     color /= self.simulation.times_burned[y][x]
                 color[color > 255] = 255
+                
 
 
                 shape = generate_cell_shape(x, y, tuple(color),
@@ -136,7 +145,16 @@ class Game(arcade.Window):
                 if new_val != prev_val:
                     # changing colors is expensive, so only do it when
                     # necessary
-                    self.shapes_grid[y][x].color = state_to_color[cell]
+                    new_color = state_to_color[cell]
+                    if(cell == forest.CellStates.ash.value):
+                        c_darkness = np.array(arcade.color.ASH_GREY) * 0.90 ** (1 * (self.simulation.times_burned[y][x]))
+                        c_lightness = np.array(arcade.color.ASH_GREY) * (self.altitude_map[y][x])
+                        new_color = color_point_mean(np.array([c_lightness,c_darkness]),weights =np.array([0.4,0.6]))
+                        
+                    #constrain max color channel value to 255
+                    new_color[new_color > 255] = 255
+                    self.shapes_grid[y][x].color = new_color.astype(int)
+
                 else:
                     # cell state unchanged
                     if new_val == forest.CellStates.fire.value:

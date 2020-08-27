@@ -39,7 +39,7 @@ class SimulationState:
         self.state :np.array = set_fire(generate_forest(x, y, tree_density))
         self._age = 0
         self.times_burned = np.ones(self.state.shape)
-        altitude_steps = 8
+        altitude_steps = 12
         altitude_components = [#((((forest.generate_noise_2d(self.simulation.state.shape,8) + 1) /
         #2) ** 4) * 2) - 1,
         generate_noise_2d(self.state.shape,8),

@@ -73,7 +73,6 @@ class Game():
         self.simulation : forest.SimulationState = forest.SimulationState(self.simulation_height, self.simulation_height)
         self.previous_state = self.simulation
 
-        self.shapes_grid = list()
         num_water_neighbors = convolve((self.simulation.state == forest.CellStates.pond.value).astype(int), KERNEL_WATER_DEPTH,mode='constant')
         altitude_steps = 8
         altitude_components = [#((((forest.generate_noise_2d(self.simulation.state.shape,8) + 1) /
@@ -87,7 +86,6 @@ class Game():
         start_time = int(round(time.time() * 1000))
 
         for y, row in enumerate(self.simulation.state):
-            newrow = list()
             for x, cell in enumerate(row):
                 color = np.array(state_to_color[cell])
                 sum_pond_neighbors = num_water_neighbors[y][x]
@@ -103,13 +101,7 @@ class Game():
                 elif cell == forest.CellStates.ash.value:
                     color /= self.simulation.times_burned[y][x]
                 color[color > 255] = 255
-                
 
-
-                shape = generate_cell_shape(x, y, tuple(color),
-                                            self.cell_height)
-                newrow.append(shape)
-            self.shapes_grid.append(newrow)
         end_time = int(round(time.time() * 1000))
         total_time = end_time - start_time
         # print('setup', total_time)
@@ -151,12 +143,12 @@ class Game():
         altitude_color_map = (self.simulation.altitude_map.reshape(self.simulation.altitude_map.shape + (1,)))
         snow_color_layer = altitude_color_map * np.full(self.color_buffer.shape,WHITE) 
         tree_color_layer = np.full(self.color_buffer.shape,state_to_color[forest.CellStates.tree.value])
-        x = snow_color_layer + tree_color_layer
+        x = (snow_color_layer + tree_color_layer) / 2
         y = self.color_buffer[self.state == forest.CellStates.tree.value]
-        self.color_buffer[self.state == forest.CellStates.tree.value] = (snow_color_layer + tree_color_layer) / 2
-        self.color_buffer[self.state == forest.CellStates.pond.value] = state_to_color[forest.CellStates.pond.value]
-        self.color_buffer[self.state == forest.CellStates.fire.value] = state_to_color[forest.CellStates.fire.value]
-        self.color_buffer[self.state == forest.CellStates.ash.value] = state_to_color[forest.CellStates.ash.value]
+        self.color_buffer[trees] = x[trees]
+        self.color_buffer[pond] = state_to_color[forest.CellStates.pond.value]
+        self.color_buffer[fire] = state_to_color[forest.CellStates.fire.value]
+        self.color_buffer[ash] = state_to_color[forest.CellStates.ash.value]
         if(np.sum(self.state == forest.CellStates.fire.value) == 0):
             self.setup()
 
@@ -185,7 +177,7 @@ parser.add_argument('--height',
 parser.add_argument('--cell_height',
     type=int,
     help='Cell height (pixels)',
-    default=4,)
+    default=8,)
 
 
 def main():

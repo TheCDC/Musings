@@ -170,7 +170,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--height',
     type=int,
     help="Simulation height (cells)",
-    default=150,)
+    default=100,)
 parser.add_argument('--cell_height',
     type=int,
     help='Cell height (pixels)',

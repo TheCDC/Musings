@@ -95,20 +95,22 @@ def generate_grid_coordinates(arr: np.array) -> Generator[Tuple[int],None,None]:
 
 
 def generate_forest(x, y, tree_density=0.8, **kwargs) -> np.array:
-    available_states = [CellStates.tree, CellStates.pond]
     forest = np.zeros((y, x))
     noise_layers = [generate_noise_2d(forest.shape,4),
         generate_noise_2d(forest.shape,8),
-        generate_noise_2d(forest.shape,64),]
-    noise_grid = sum([((l + 1) / 2) ** 2 for l in noise_layers]) - (generate_noise_2d(forest.shape,32))
-    for x, y in generate_grid_coordinates(forest):
-        noise_is_high = (noise_grid[y][x]) > (tree_density)
-        if noise_is_high:
-            forest[y][x] = CellStates.tree.value
-        else:
-            forest[y][x] = CellStates.pond.value
+        generate_noise_2d(forest.shape,64),
+        ]
+    #rivers_noise = np.abs(generate_noise_2d(forest.shape,256) +
+    #generate_noise_2d(forest.shape,64))
+    #rivers_layer = np.zeros(rivers_noise.shape)
+    #river_noise_thresh = 0.02
+    #rivers_layer[rivers_noise >= river_noise_thresh] = 0
+    #rivers_layer[rivers_noise < river_noise_thresh] = 1
+    noise_grid = sum([((l + 1) / 2)**2  for l in noise_layers]) - (generate_noise_2d(forest.shape,32) )
+    forest[noise_grid >= tree_density] = CellStates.tree.value
+    forest[noise_grid < tree_density] = CellStates.pond.value
+    #forest[rivers_layer == 1] = CellStates.pond.value
     return forest
-
 
 def set_fire(forest):
     new_forest = np.copy(forest)
@@ -118,7 +120,8 @@ def set_fire(forest):
     random.shuffle(possible_coordinates)
     to_set_fire = possible_coordinates[:num_fires]
     r = tuple(zip(*to_set_fire)) #wrangle coordinates back from ((x0,y0),(x1,y1)) to ((x0,x1,...),(y0,y2,...))
-    new_forest[r] = CellStates.fire.value
+    if len(r) > 0:
+        new_forest[r] = CellStates.fire.value
     return new_forest
 
 

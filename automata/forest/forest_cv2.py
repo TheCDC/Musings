@@ -125,7 +125,7 @@ class Game():
         #img =
         #np.resize(np.random.random_sample((self.simulation_height,self.simulation_height,3)),(self.simulation_height
         #* self.cell_height,self.simulation_height * self.cell_height,3))
-        img = zoom(self.color_buffer,(self.cell_height,self.cell_height,1),order=0)/255
+        img = zoom(self.color_buffer,(self.cell_height,self.cell_height,1),order=0) / 255
         img = cv2.cvtColor(img.astype('float32'), cv2.COLOR_RGB2BGR)
         s = img.shape
         #r,g,b = cv2.split(img)
@@ -141,8 +141,19 @@ class Game():
         self.previous_state = self.simulation.state
         self.simulation.step(**self.simulation_parameters)
         self.state = self.simulation.state
+
         self.color_buffer = np.zeros((self.state.shape) + (3,))
-        self.color_buffer[self.state == forest.CellStates.tree.value] = state_to_color[forest.CellStates.tree.value]
+
+        trees = self.state == forest.CellStates.tree.value
+        fire = self.state == forest.CellStates.fire.value
+        ash = self.state == forest.CellStates.ash.value
+        pond = self.state == forest.CellStates.pond.value
+        altitude_color_map = (self.simulation.altitude_map.reshape(self.simulation.altitude_map.shape + (1,)))
+        snow_color_layer = altitude_color_map * np.full(self.color_buffer.shape,WHITE) 
+        tree_color_layer = np.full(self.color_buffer.shape,state_to_color[forest.CellStates.tree.value])
+        x = snow_color_layer + tree_color_layer
+        y = self.color_buffer[self.state == forest.CellStates.tree.value]
+        self.color_buffer[self.state == forest.CellStates.tree.value] = (snow_color_layer + tree_color_layer) / 2
         self.color_buffer[self.state == forest.CellStates.pond.value] = state_to_color[forest.CellStates.pond.value]
         self.color_buffer[self.state == forest.CellStates.fire.value] = state_to_color[forest.CellStates.fire.value]
         self.color_buffer[self.state == forest.CellStates.ash.value] = state_to_color[forest.CellStates.ash.value]

@@ -39,6 +39,14 @@ class SimulationState:
         self.state :np.array = set_fire(generate_forest(x, y, tree_density))
         self._age = 0
         self.times_burned = np.ones(self.state.shape)
+        altitude_steps = 8
+        altitude_components = [#((((forest.generate_noise_2d(self.simulation.state.shape,8) + 1) /
+        #2) ** 4) * 2) - 1,
+        generate_noise_2d(self.state.shape,8),
+        generate_noise_2d(self.state.shape,32),
+        generate_noise_2d(self.state.shape,64)]
+        self.altitude_map = (np.ceil(((sum(altitude_components) + 1) / 2) ** 2 * altitude_steps) / altitude_steps)
+        pass
     @property
     def age(self):
         return self._age
@@ -98,15 +106,14 @@ def generate_forest(x, y, tree_density=0.8, **kwargs) -> np.array:
     forest = np.zeros((y, x))
     noise_layers = [generate_noise_2d(forest.shape,4),
         generate_noise_2d(forest.shape,8),
-        generate_noise_2d(forest.shape,64),
-        ]
+        generate_noise_2d(forest.shape,64),]
     #rivers_noise = np.abs(generate_noise_2d(forest.shape,256) +
     #generate_noise_2d(forest.shape,64))
     #rivers_layer = np.zeros(rivers_noise.shape)
     #river_noise_thresh = 0.02
     #rivers_layer[rivers_noise >= river_noise_thresh] = 0
     #rivers_layer[rivers_noise < river_noise_thresh] = 1
-    noise_grid = sum([((l + 1) / 2)**2  for l in noise_layers]) - (generate_noise_2d(forest.shape,32) )
+    noise_grid = sum([((l + 1) / 2) ** 2  for l in noise_layers]) - (generate_noise_2d(forest.shape,32))
     forest[noise_grid >= tree_density] = CellStates.tree.value
     forest[noise_grid < tree_density] = CellStates.pond.value
     #forest[rivers_layer == 1] = CellStates.pond.value

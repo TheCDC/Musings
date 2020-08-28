@@ -141,7 +141,7 @@ class Game():
         cv2.imshow(self.window_name, img)
         cv2.waitKey(1)
 
-        cv2.imshow("times_burned",(self.simulation.times_burned / np.max(self.simulation.times_burned)) )
+        cv2.imshow("times_burned",(self.simulation.times_burned >= 1).astype('float32'))
         end_time = int(round(time.time() * 1000))
         total_time = end_time - start_time
         print('draw', total_time)
@@ -153,26 +153,6 @@ class Game():
         self.simulation.step(**self.simulation_parameters)
         self.state = self.simulation.state
 
-        #if(np.sum(self.state == forest.CellStates.fire.value) == 0):
-        #    self.setup()
-
-        #for y, row in enumerate(self.simulation.state):
-        #    for x, cell in enumerate(row):
-        #        prev_val = self.previous_state[y][x]
-        #        new_val = self.simulation.state[y][x]
-        #        new_color = state_to_color[cell]
-        #        if(cell == forest.CellStates.ash.value):
-        #            c_darkness = np.array(arcade.color.ASH_GREY) * 0.90 ** (1
-        #            * (self.simulation.times_burned[y][x]))
-        #            c_lightness = np.array(arcade.color.ASH_GREY) *
-        #            (self.altitude_map[y][x])
-        #            new_color =
-        #            color_point_mean(np.array([c_lightness,c_darkness]),weights
-        #            =np.array([0.4,0.6]))
-                        
-        #        #constrain max color channel value to 255
-        #        new_color[new_color > 255] = 255
-        #        self.shapes_grid[y][x].color = new_color.astype(int)
     def mouse_click(self, event, x, y,  
                 flags, param): 
         # to check if left mouse

@@ -25,13 +25,14 @@ adjacent_offsets = [(-1, 1), (0, 1), (1, 1), (-1, 0), (0, 0), (1, 0), (-1, -1),
 def repeated_trials(p_trial,n_trials):
     return 1 - (1 - p_trial) ** n_trials
 def generate_noise_2d(shape,feature_size=4) -> np.array:
+    offsets = (random.randrange(1024),random.randrange(1024))
     width = shape[1]
     height = shape[0]
-    simplex = OpenSimplex(seed=random.randrange(0,2048**2))
+    simplex = OpenSimplex(seed=random.randrange(0,2048 ** 2))
     arr = np.ones((width,height))
     for y in range(height):
         for x in range(width):
-            arr[y,x] = simplex.noise2d(x / feature_size,y / feature_size)
+            arr[y,x] = simplex.noise2d((x + offsets[0]) / feature_size,(y + offsets[1]) / feature_size)
     return arr
 
 def quantize_layer(arr:np.array,steps:int):
@@ -47,7 +48,8 @@ class SimulationState:
         #generate_noise_2d(self.state.shape,8) / 2 + 1 / 2,
 ((generate_noise_2d(self.state.shape,16) + 1) / 8),
         (generate_noise_2d(self.state.shape,128) / 2 + 1 / 2) ,]
-        #self.altitude_map = (np.ceil(sum(altitude_components) * altitude_steps) / altitude_steps)
+        #self.altitude_map = (np.ceil(sum(altitude_components) *
+        #altitude_steps) / altitude_steps)
         self.altitude_map = quantize_layer(sum(altitude_components),altitude_steps)
         self.temperature_map = generate_noise_2d(self.state.shape,128)
         
@@ -114,30 +116,35 @@ def generate_forest(x, y, tree_density=0.5, **kwargs) -> np.array:
     land_bridge_layer = np.abs(generate_noise_2d(forest.shape,128)) + generate_noise_2d(forest.shape,16) ** 2 / 8 - generate_noise_2d(forest.shape,16) ** 2
 
     land_bridge_layer[land_bridge_layer > land_bridge_thresh] = 1
-    #cv2.imshow("land_bridge_layer",land_bridge_layer)
     # ===== Rivers =====
     river_obstacles_layer = generate_noise_2d(forest.shape,64)
 
     rivers_thresh = 0.05
 
     rivers_layer = generate_noise_2d(forest.shape,32)
+    rivers_layer_mask = np.logical_and(rivers_layer < rivers_thresh, rivers_layer > - rivers_thresh)
     rivers_tiny_layer = generate_noise_2d(forest.shape,12)
+    rivers_tiny_layer_mask = np.logical_and(rivers_tiny_layer < rivers_thresh * 1.5, rivers_tiny_layer > - rivers_thresh)
     # Apply normal size rivers
-    rivers_layer[np.logical_and(np.logical_and(rivers_layer < rivers_thresh, rivers_layer > - rivers_thresh), #slice the noise to select blobby circularish regions
+    rivers_layer[np.logical_and(rivers_layer_mask, #slice the noise to select blobby circularish regions
                                 river_obstacles_layer < 0)] = 1
     # Apply tiny rivers
-    rivers_layer[np.logical_and(np.logical_and(rivers_tiny_layer < rivers_thresh * 1.5, rivers_tiny_layer > - rivers_thresh), #slice the noise to select blobby circularish regions
+    rivers_tiny_layer[np.logical_and(rivers_tiny_layer_mask, #slice the noise to select blobby circularish regions
         generate_noise_2d(forest.shape,32) < 0)] = 1
     # ===== Oceans =====
     oceans_thresh = 0.3
     oceans_layer = np.abs(generate_noise_2d(forest.shape,256)) + (generate_noise_2d(forest.shape,8) ** 2) / 8
     oceans_layer[oceans_layer > oceans_thresh] = 1
-    #cv2.imshow("oceans_layer",oceans_layer)
 
     # ===== Apply Layers =====
+    cv2.imshow("oceans_layer",oceans_layer)
+    cv2.imshow("land_bridge_layer",land_bridge_layer)
+    cv2.imshow("rivers_layer",rivers_layer)
+    cv2.imshow("rivers_tiny_layer",rivers_tiny_layer)
     forest[oceans_layer == 1] = CellStates.pond.value
     forest[land_bridge_layer == 1] = CellStates.tree.value
     forest[rivers_layer == 1] = CellStates.pond.value
+    forest[rivers_tiny_layer == 1] = CellStates.pond.value
     return forest
 
 def set_fire(forest):

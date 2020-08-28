@@ -40,15 +40,16 @@ class SimulationState:
     def __init__(self, x: int=10, y: int=10, tree_density=0.5,):
         self.state :np.array = set_fire(generate_forest(x, y, tree_density))
         self._age = 0
-        self.times_burned = np.ones(self.state.shape)
+        self.times_burned = np.zeros(self.state.shape)
         altitude_steps = 12
         altitude_components = [#((((forest.generate_noise_2d(self.simulation.state.shape,8) + 1) /
         #2) ** 4) * 2) - 1,
         #generate_noise_2d(self.state.shape,8) / 2 + 1 / 2,
 ((generate_noise_2d(self.state.shape,16) + 1) / 8),
         (generate_noise_2d(self.state.shape,128) / 2 + 1 / 2) ,]
-        self.altitude_map = (np.ceil(sum(altitude_components) * altitude_steps) / altitude_steps)
-        self.temperature_map = quantize_layer(generate_noise_2d(self.state.shape,128),24)
+        #self.altitude_map = (np.ceil(sum(altitude_components) * altitude_steps) / altitude_steps)
+        self.altitude_map = quantize_layer(sum(altitude_components),altitude_steps)
+        self.temperature_map = generate_noise_2d(self.state.shape,128)
         
     @property
     def age(self):

@@ -65,13 +65,15 @@ class Game():
     def setup(self):
         self.paused :bool = True
         self.simulation_parameters = dict(tree_density=random.random() * 0.7,
-            chance_spread_fire_to_tree=random.random() / 2,
+            chance_spread_fire_to_tree=random.random() / 2 + 0.1,
             chance_fire_sustain=random.random(),
             chance_spread_fire_to_ash=random.random() * 0.9)
         self.simulation : forest.SimulationState = forest.SimulationState(self.simulation_height, self.simulation_height)
-        self.previous_state = self.simulation
+        self.previous_state : forest.SimulationState = self.simulation
         self.update(0,force=True)
-        start_time = int(round(time.time() * 1000))
+        start_time :int = int(round(time.time() * 1000))
+        self.state :np.array = self.simulation.state
+
 
         #for y, row in enumerate(self.simulation.state):
         #    for x, cell in enumerate(row):
@@ -104,29 +106,6 @@ class Game():
             f'P(sustain)={self.simulation_parameters["chance_fire_sustain"]:.2f}',
             f'P(reignite)={self.simulation_parameters["chance_spread_fire_to_ash"]:.2f}',])
 
-        #img =
-        #np.resize(np.random.random_sample((self.simulation_height,self.simulation_height,3)),(self.simulation_height
-        #* self.cell_height,self.simulation_height * self.cell_height,3))
-        img = zoom(self.color_buffer,(self.cell_height,self.cell_height,1),order=0) / 255
-        img = cv2.cvtColor(img.astype('float32'), cv2.COLOR_RGB2BGR)
-        s = img.shape
-        #r,g,b = cv2.split(img)
-        #img_bgr = cv2.merge([b,g,r])
-
-        #=========== Set up mouse click event handler ==========
-        cv2.setMouseCallback(self.window_name, self.mouse_click) 
-        cv2.imshow(self.window_name, img)
-        cv2.waitKey(1)
-        end_time = int(round(time.time() * 1000))
-        total_time = end_time - start_time
-        print('draw', total_time)
-
-    def update(self, delta_time,force=False):
-        if self.paused and not force:
-            return
-        self.previous_state = self.simulation.state
-        self.simulation.step(**self.simulation_parameters)
-        self.state = self.simulation.state
         color_map_scalar_shape = self.state.shape + (1,)
 
         self.color_buffer = np.zeros((self.state.shape) + (3,))
@@ -150,6 +129,30 @@ class Game():
         self.color_buffer[pond] = (water_color_layer * (0.98 ** num_pond_neighbors.reshape(color_map_scalar_shape)))[pond]
         self.color_buffer[fire] = state_to_color[forest.CellStates.fire.value]
         self.color_buffer[ash] = (ash_color_layer * (0.90 ** self.simulation.times_burned.reshape(color_map_scalar_shape)))[ash]
+
+
+
+        img = zoom(self.color_buffer,(self.cell_height,self.cell_height,1),order=0) / 255
+        img = cv2.cvtColor(img.astype('float32'), cv2.COLOR_RGB2BGR)
+        s = img.shape
+
+        #=========== Set up mouse click event handler ==========
+        cv2.setMouseCallback(self.window_name, self.mouse_click) 
+        cv2.imshow(self.window_name, img)
+        cv2.waitKey(1)
+
+        cv2.imshow("times_burned",self.simulation.times_burned / np.max(self.simulation.times_burned))
+        end_time = int(round(time.time() * 1000))
+        total_time = end_time - start_time
+        print('draw', total_time)
+
+    def update(self, delta_time,force=False):
+        if self.paused and not force:
+            return
+        self.previous_state = self.simulation.state
+        self.simulation.step(**self.simulation_parameters)
+        self.state = self.simulation.state
+
         #if(np.sum(self.state == forest.CellStates.fire.value) == 0):
         #    self.setup()
 

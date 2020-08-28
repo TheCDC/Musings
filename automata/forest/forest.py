@@ -114,16 +114,19 @@ def generate_forest(x, y, tree_density=0.8, **kwargs) -> np.array:
     land_bridge_layer = np.sign(land_bridge_layer) * np.abs(land_bridge_layer) 
     land_bridge_layer[np.logical_and(land_bridge_layer < land_bridge_thresh, land_bridge_layer > - land_bridge_thresh)] = 1
     # =====Rivers =====
-    rivers_thresh = 0.1
+    river_obstacles_layer = generate_noise_2d(forest.shape,64)
+
+    rivers_thresh = 0.05
+
     rivers_layer = generate_noise_2d(forest.shape,32)
     rivers_layer = np.sign(rivers_layer) * np.abs(rivers_layer) 
-    rivers_layer[np.logical_and(rivers_layer < rivers_thresh, rivers_layer > - rivers_thresh)] = 1
+    rivers_layer[np.logical_and(np.logical_and(rivers_layer < rivers_thresh, rivers_layer > - rivers_thresh),river_obstacles_layer < 0)] = 1
 
 
     forest[trees_base_layer >= tree_density] = CellStates.tree.value
     forest[trees_base_layer < tree_density] = CellStates.pond.value
     forest[land_bridge_layer == 1] = CellStates.tree.value
-    forest[land_bridge_layer == 1] = CellStates.pond.value
+    forest[rivers_layer == 1] = CellStates.pond.value
     return forest
 
 def set_fire(forest):

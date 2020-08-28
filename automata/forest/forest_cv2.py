@@ -149,8 +149,8 @@ class Game ( ):
         self.color_buffer[pond] = (water_color_layer * (0.95 ** num_pond_neighbors.reshape(self.state.shape + (1,))))[pond]
         self.color_buffer[fire] = state_to_color[forest.CellStates.fire.value]
         self.color_buffer[ash] = (ash_color_layer * (0.90 ** self.simulation.times_burned.reshape(self.state.shape + (1,))))[ash]
-        if(np.sum(self.state == forest.CellStates.fire.value) == 0):
-            self.setup()
+        #if(np.sum(self.state == forest.CellStates.fire.value) == 0):
+        #    self.setup()
 
         #for y, row in enumerate(self.simulation.state):
         #    for x, cell in enumerate(row):
@@ -182,11 +182,11 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--height',
     type=int,
     help="Simulation height (cells)",
-    default=100,)
+    default=200,)
 parser.add_argument('--cell_height',
     type=int,
     help='Cell height (pixels)',
-    default=8,)
+    default=4,)
 
 
 def main():

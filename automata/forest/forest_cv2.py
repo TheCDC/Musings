@@ -141,7 +141,7 @@ class Game():
         cv2.imshow(self.window_name, img)
         cv2.waitKey(1)
 
-        cv2.imshow("times_burned",self.simulation.times_burned / np.max(self.simulation.times_burned))
+        cv2.imshow("times_burned",(self.simulation.times_burned / np.max(self.simulation.times_burned)) )
         end_time = int(round(time.time() * 1000))
         total_time = end_time - start_time
         print('draw', total_time)

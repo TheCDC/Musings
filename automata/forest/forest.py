@@ -27,7 +27,7 @@ def repeated_trials(p_trial,n_trials):
 def generate_noise_2d(shape,feature_size=4) -> np.array:
     width = shape[1]
     height = shape[0]
-    simplex = OpenSimplex(seed=random.randrange(0,2048))
+    simplex = OpenSimplex(seed=random.randrange(0,2048**2))
     arr = np.ones((width,height))
     for y in range(height):
         for x in range(width):

@@ -26,6 +26,9 @@
     <Content Include="screenshots\3.png" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="cv2_utils.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="forest.py" />
     <Compile Include="forest_cv2.py" />
     <Compile Include="forest_graphical.py" />

@@ -1,3 +1,4 @@
+from cv2_utils import numpy_to_cv2
 import time
 import arcade
 import forest
@@ -21,6 +22,7 @@ from time import sleep
 SIMULATION_DIMENSIONS = (50, 50)
 CELL_HEIGHT = 15
 WHITE = np.array(arcade.color.WHITE)
+DRY_BROWN = np.array((176, 103, 0))
 state_to_color = {
     forest.CellStates.ash.value: np.array(arcade.color.LIGHT_GRAY),
     forest.CellStates.fire.value: np.array(arcade.color.RED_ORANGE),
@@ -29,11 +31,7 @@ state_to_color = {
     0: arcade.color.YELLOW,
 }
 
-KERNEL_WATER_DEPTH = np.array([[0,1,1,1,0],
-    [1,1,1,1,1],
-    [1,1,0,1,1],
-    [1,1,1,1,1],
-    [0,1,1,1,0],])
+KERNEL_WATER_DEPTH = np.ones((7,7))
 
 def generate_cell_shape(x, y, color, cell_height=CELL_HEIGHT):
     xx = x * cell_height + cell_height / 2
@@ -54,7 +52,7 @@ def color_point_mean(colors:np.array,weights:np.array=None):
     return sum(colors * weights) / len(colors)
 
 
-class Game ( ):
+class Game():
     def __init__(self, window_height, cell_height):
         self.window_name = f"Forest Fire {window_height}x{window_height}"
         self.simulation_height = window_height
@@ -66,10 +64,10 @@ class Game ( ):
         self.color_buffer = np.zeros((self.simulation_height,self.simulation_height,3))
     def setup(self):
         self.paused :bool = True
-        self.simulation_parameters = dict(tree_density=random.random(),
+        self.simulation_parameters = dict(tree_density=random.random() * 0.7,
             chance_spread_fire_to_tree=random.random() / 2,
             chance_fire_sustain=random.random(),
-            chance_spread_fire_to_ash=random.random() / 2)
+            chance_spread_fire_to_ash=random.random() * 0.9)
         self.simulation : forest.SimulationState = forest.SimulationState(self.simulation_height, self.simulation_height)
         self.previous_state = self.simulation
         self.update(0,force=True)
@@ -129,6 +127,7 @@ class Game ( ):
         self.previous_state = self.simulation.state
         self.simulation.step(**self.simulation_parameters)
         self.state = self.simulation.state
+        color_map_scalar_shape = self.state.shape + (1,)
 
         self.color_buffer = np.zeros((self.state.shape) + (3,))
 
@@ -140,15 +139,17 @@ class Game ( ):
         num_tree_neighbors = convolve(trees.astype(int),KERNEL_WATER_DEPTH,mode="constant")
         num_pond_neighbors = convolve(pond.astype(int),KERNEL_WATER_DEPTH,mode="constant")
 
-        altitude_color_map = (self.simulation.altitude_map.reshape(self.state.shape + (1,)))
+        altitude_color_map = (self.simulation.altitude_map.reshape(color_map_scalar_shape))
         snow_color_layer = altitude_color_map * np.full(self.color_buffer.shape,WHITE) 
+        dry_tree_color_layer = self.simulation.temperature_map.reshape(color_map_scalar_shape) * np.full(self.color_buffer.shape,DRY_BROWN)
         tree_color_layer = np.full(self.color_buffer.shape,state_to_color[forest.CellStates.tree.value])
         water_color_layer = np.full(self.color_buffer.shape,state_to_color[forest.CellStates.pond.value])
         ash_color_layer = np.full(self.color_buffer.shape,state_to_color[forest.CellStates.ash.value])
-        self.color_buffer[trees] = ((snow_color_layer + tree_color_layer) / 2)[trees]
-        self.color_buffer[pond] = (water_color_layer * (0.95 ** num_pond_neighbors.reshape(self.state.shape + (1,))))[pond]
+
+        self.color_buffer[trees] = ((snow_color_layer * 0.4 + tree_color_layer * 0.2 + dry_tree_color_layer * 0.4))[trees]
+        self.color_buffer[pond] = (water_color_layer * (0.98 ** num_pond_neighbors.reshape(color_map_scalar_shape)))[pond]
         self.color_buffer[fire] = state_to_color[forest.CellStates.fire.value]
-        self.color_buffer[ash] = (ash_color_layer * (0.90 ** self.simulation.times_burned.reshape(self.state.shape + (1,))))[ash]
+        self.color_buffer[ash] = (ash_color_layer * (0.90 ** self.simulation.times_burned.reshape(color_map_scalar_shape)))[ash]
         #if(np.sum(self.state == forest.CellStates.fire.value) == 0):
         #    self.setup()
 
@@ -186,7 +187,7 @@ parser.add_argument('--height',
 parser.add_argument('--cell_height',
     type=int,
     help='Cell height (pixels)',
-    default=4,)
+    default=2,)
 
 
 def main():

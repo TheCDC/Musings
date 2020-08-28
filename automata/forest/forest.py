@@ -1,19 +1,19 @@
 # https://www.reddit.com/r/learnpython/comments/b6iu6z/forest_fire_simulation_program_help/
 import random
 import enum
-import copy
 import math
 import numpy as np
-
+import cv2
+from cv2_utils import numpy_to_cv2
 from opensimplex import OpenSimplex
-from typing import Generator, Tuple, Set
+from typing import Generator, Tuple
 from scipy.ndimage import convolve
 
 KERNEL_IMMEDIATE_NEIGHBORS = np.array([[1,1,1],
                                        [1,0,1],
                                        [1,1,1]])
 
-class CellStates ( enum.Enum ):
+class CellStates(enum.Enum):
     pond = 1
     tree = 2
     ash = 3
@@ -33,6 +33,9 @@ def generate_noise_2d(shape,feature_size=4) -> np.array:
         for x in range(width):
             arr[y,x] = simplex.noise2d(x / feature_size,y / feature_size)
     return arr
+
+def quantize_layer(arr:np.array,steps:int):
+    return  (np.ceil(np.abs(arr) * steps) / steps)
 class SimulationState:
     def __init__(self, x: int=10, y: int=10, tree_density=0.5,):
         self.state :np.array = set_fire(generate_forest(x, y, tree_density))
@@ -45,7 +48,8 @@ class SimulationState:
 ((generate_noise_2d(self.state.shape,16) + 1) / 8),
         (generate_noise_2d(self.state.shape,128) / 2 + 1 / 2) ,]
         self.altitude_map = (np.ceil(sum(altitude_components) * altitude_steps) / altitude_steps)
-        pass
+        self.temperature_map = quantize_layer(generate_noise_2d(self.state.shape,128),24)
+        
     @property
     def age(self):
         return self._age
@@ -101,30 +105,36 @@ def generate_grid_coordinates(arr: np.array) -> Generator[Tuple[int],None,None]:
             yield x, y
 
 
-def generate_forest(x, y, tree_density=0.8, **kwargs) -> np.array:
-    forest = np.zeros((y, x))
-    noise_layers = [generate_noise_2d(forest.shape,4),
-        generate_noise_2d(forest.shape,8),
-        generate_noise_2d(forest.shape,64),]
-    # ===== Normal Trees Layer =====
-    trees_base_layer = sum([((l + 1) / 2) ** 2  for l in noise_layers]) - (generate_noise_2d(forest.shape,32))
+def generate_forest(x, y, tree_density=0.5, **kwargs) -> np.array:
+    forest = np.full((y, x),CellStates.tree.value)
+  
     # ===== Land Bridges =====
-    land_bridge_thresh = 0.05
-    land_bridge_layer = generate_noise_2d(forest.shape,256)
-    land_bridge_layer = np.sign(land_bridge_layer) * np.abs(land_bridge_layer) 
-    land_bridge_layer[np.logical_and(land_bridge_layer < land_bridge_thresh, land_bridge_layer > - land_bridge_thresh)] = 1
-    # =====Rivers =====
+    land_bridge_thresh = 0.3
+    land_bridge_layer = np.abs(generate_noise_2d(forest.shape,128)) + generate_noise_2d(forest.shape,16) ** 2 / 8 - generate_noise_2d(forest.shape,16) ** 2
+
+    land_bridge_layer[land_bridge_layer > land_bridge_thresh] = 1
+    #cv2.imshow("land_bridge_layer",land_bridge_layer)
+    # ===== Rivers =====
     river_obstacles_layer = generate_noise_2d(forest.shape,64)
 
     rivers_thresh = 0.05
 
     rivers_layer = generate_noise_2d(forest.shape,32)
-    rivers_layer = np.sign(rivers_layer) * np.abs(rivers_layer) 
-    rivers_layer[np.logical_and(np.logical_and(rivers_layer < rivers_thresh, rivers_layer > - rivers_thresh),river_obstacles_layer < 0)] = 1
+    rivers_tiny_layer = generate_noise_2d(forest.shape,12)
+    # Apply normal size rivers
+    rivers_layer[np.logical_and(np.logical_and(rivers_layer < rivers_thresh, rivers_layer > - rivers_thresh), #slice the noise to select blobby circularish regions
+                                river_obstacles_layer < 0)] = 1
+    # Apply tiny rivers
+    rivers_layer[np.logical_and(np.logical_and(rivers_tiny_layer < rivers_thresh * 1.5, rivers_tiny_layer > - rivers_thresh), #slice the noise to select blobby circularish regions
+        generate_noise_2d(forest.shape,32) < 0)] = 1
+    # ===== Oceans =====
+    oceans_thresh = 0.3
+    oceans_layer = np.abs(generate_noise_2d(forest.shape,256)) + (generate_noise_2d(forest.shape,8) ** 2) / 8
+    oceans_layer[oceans_layer > oceans_thresh] = 1
+    #cv2.imshow("oceans_layer",oceans_layer)
 
-
-    forest[trees_base_layer >= tree_density] = CellStates.tree.value
-    forest[trees_base_layer < tree_density] = CellStates.pond.value
+    # ===== Apply Layers =====
+    forest[oceans_layer == 1] = CellStates.pond.value
     forest[land_bridge_layer == 1] = CellStates.tree.value
     forest[rivers_layer == 1] = CellStates.pond.value
     return forest

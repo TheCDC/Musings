@@ -24,7 +24,7 @@ WHITE = np.array(arcade.color.WHITE)
 state_to_color = {
     forest.CellStates.ash.value: np.array(arcade.color.LIGHT_GRAY),
     forest.CellStates.fire.value: np.array(arcade.color.RED_ORANGE),
-    forest.CellStates.tree.value: np.array(arcade.color.FOREST_GREEN),
+    forest.CellStates.tree.value: np.array(arcade.color.GREEN),
     forest.CellStates.pond.value: np.array((40, 122, 255)),
     0: arcade.color.YELLOW,
 }
@@ -54,9 +54,9 @@ def color_point_mean(colors:np.array,weights:np.array=None):
     return sum(colors * weights) / len(colors)
 
 
-class Game():
+class Game ( ):
     def __init__(self, window_height, cell_height):
-        
+        self.window_name = f"Forest Fire {window_height}x{window_height}"
         self.simulation_height = window_height
         self.cell_height = cell_height
         self.simulation_parameters = None
@@ -72,35 +72,27 @@ class Game():
             chance_spread_fire_to_ash=random.random() / 2)
         self.simulation : forest.SimulationState = forest.SimulationState(self.simulation_height, self.simulation_height)
         self.previous_state = self.simulation
-
-        num_water_neighbors = convolve((self.simulation.state == forest.CellStates.pond.value).astype(int), KERNEL_WATER_DEPTH,mode='constant')
-        altitude_steps = 8
-        altitude_components = [#((((forest.generate_noise_2d(self.simulation.state.shape,8) + 1) /
-            #2) ** 4) * 2) - 1,
-            forest.generate_noise_2d(self.simulation.state.shape,8),
-            forest.generate_noise_2d(self.simulation.state.shape,32),
-            forest.generate_noise_2d(self.simulation.state.shape,64)]
-        self.altitude_map = (np.ceil(((sum(altitude_components) + 1) / 2) ** 2 * altitude_steps) / altitude_steps)
-        amax = self.altitude_map.max()
-
+        self.update(0,force=True)
         start_time = int(round(time.time() * 1000))
 
-        for y, row in enumerate(self.simulation.state):
-            for x, cell in enumerate(row):
-                color = np.array(state_to_color[cell])
-                sum_pond_neighbors = num_water_neighbors[y][x]
-                cell_altitude = self.altitude_map[y][x]
-                if(cell == forest.CellStates.pond.value):
-                    color = (color * 0.95 ** (sum_pond_neighbors)).astype(int)
-                    pass
-                elif cell == forest.CellStates.tree.value:
-                    #make lighter based on altitude
-                    color = (color + cell_altitude * (WHITE - color)).astype(int)
-                    #make darker when near pond
-                    color = (color * 0.90 ** (sum_pond_neighbors * (1 - cell_altitude))).astype(int)
-                elif cell == forest.CellStates.ash.value:
-                    color /= self.simulation.times_burned[y][x]
-                color[color > 255] = 255
+        #for y, row in enumerate(self.simulation.state):
+        #    for x, cell in enumerate(row):
+        #        color = np.array(state_to_color[cell])
+        #        sum_pond_neighbors = num_water_neighbors[y][x]
+        #        cell_altitude = self.altitude_map[y][x]
+        #        if(cell == forest.CellStates.pond.value):
+        #            color = (color * 0.95 ** (sum_pond_neighbors)).astype(int)
+        #            pass
+        #        elif cell == forest.CellStates.tree.value:
+        #            #make lighter based on altitude
+        #            color = (color + cell_altitude * (WHITE -
+        #            color)).astype(int)
+        #            #make darker when near pond
+        #            color = (color * 0.90 ** (sum_pond_neighbors * (1 -
+        #            cell_altitude))).astype(int)
+        #        elif cell == forest.CellStates.ash.value:
+        #            color /= self.simulation.times_burned[y][x]
+        #        color[color > 255] = 255
 
         end_time = int(round(time.time() * 1000))
         total_time = end_time - start_time
@@ -122,14 +114,18 @@ class Game():
         s = img.shape
         #r,g,b = cv2.split(img)
         #img_bgr = cv2.merge([b,g,r])
-        cv2.imshow("image", img)
+
+        #=========== Set up mouse click event handler ==========
+        cv2.setMouseCallback(self.window_name, self.mouse_click) 
+        cv2.imshow(self.window_name, img)
         cv2.waitKey(1)
         end_time = int(round(time.time() * 1000))
         total_time = end_time - start_time
         print('draw', total_time)
 
-    def update(self, delta_time):
-   
+    def update(self, delta_time,force=False):
+        if self.paused and not force:
+            return
         self.previous_state = self.simulation.state
         self.simulation.step(**self.simulation_parameters)
         self.state = self.simulation.state
@@ -140,15 +136,19 @@ class Game():
         fire = self.state == forest.CellStates.fire.value
         ash = self.state == forest.CellStates.ash.value
         pond = self.state == forest.CellStates.pond.value
-        altitude_color_map = (self.simulation.altitude_map.reshape(self.simulation.altitude_map.shape + (1,)))
+
+        num_tree_neighbors = convolve(trees.astype(int),KERNEL_WATER_DEPTH,mode="constant")
+        num_pond_neighbors = convolve(pond.astype(int),KERNEL_WATER_DEPTH,mode="constant")
+
+        altitude_color_map = (self.simulation.altitude_map.reshape(self.state.shape + (1,)))
         snow_color_layer = altitude_color_map * np.full(self.color_buffer.shape,WHITE) 
         tree_color_layer = np.full(self.color_buffer.shape,state_to_color[forest.CellStates.tree.value])
-        x = (snow_color_layer + tree_color_layer) / 2
-        y = self.color_buffer[self.state == forest.CellStates.tree.value]
-        self.color_buffer[trees] = x[trees]
-        self.color_buffer[pond] = state_to_color[forest.CellStates.pond.value]
+        water_color_layer = np.full(self.color_buffer.shape,state_to_color[forest.CellStates.pond.value])
+        ash_color_layer = np.full(self.color_buffer.shape,state_to_color[forest.CellStates.ash.value])
+        self.color_buffer[trees] = ((snow_color_layer + tree_color_layer) / 2)[trees]
+        self.color_buffer[pond] = (water_color_layer * (0.95 ** num_pond_neighbors.reshape(self.state.shape + (1,))))[pond]
         self.color_buffer[fire] = state_to_color[forest.CellStates.fire.value]
-        self.color_buffer[ash] = state_to_color[forest.CellStates.ash.value]
+        self.color_buffer[ash] = (ash_color_layer * (0.90 ** self.simulation.times_burned.reshape(self.state.shape + (1,))))[ash]
         if(np.sum(self.state == forest.CellStates.fire.value) == 0):
             self.setup()
 
@@ -169,6 +169,15 @@ class Game():
         #        #constrain max color channel value to 255
         #        new_color[new_color > 255] = 255
         #        self.shapes_grid[y][x].color = new_color.astype(int)
+    def mouse_click(self, event, x, y,  
+                flags, param): 
+        # to check if left mouse
+        # button was clicked
+        if event == cv2.EVENT_LBUTTONDOWN: 
+            self.paused = not self.paused
+            pass
+        elif event == cv2.EVENT_RBUTTONDOWN: 
+            self.setup()
 parser = argparse.ArgumentParser()
 parser.add_argument('--height',
     type=int,

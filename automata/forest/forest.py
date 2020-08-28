@@ -13,7 +13,7 @@ KERNEL_IMMEDIATE_NEIGHBORS = np.array([[1,1,1],
                                        [1,0,1],
                                        [1,1,1]])
 
-class CellStates(enum.Enum):
+class CellStates ( enum.Enum ):
     pond = 1
     tree = 2
     ash = 3
@@ -33,7 +33,6 @@ def generate_noise_2d(shape,feature_size=4) -> np.array:
         for x in range(width):
             arr[y,x] = simplex.noise2d(x / feature_size,y / feature_size)
     return arr
-
 class SimulationState:
     def __init__(self, x: int=10, y: int=10, tree_density=0.5,):
         self.state :np.array = set_fire(generate_forest(x, y, tree_density))
@@ -42,10 +41,10 @@ class SimulationState:
         altitude_steps = 12
         altitude_components = [#((((forest.generate_noise_2d(self.simulation.state.shape,8) + 1) /
         #2) ** 4) * 2) - 1,
-        generate_noise_2d(self.state.shape,8),
-        generate_noise_2d(self.state.shape,32),
-        generate_noise_2d(self.state.shape,64)]
-        self.altitude_map = (np.ceil(((sum(altitude_components) + 1) / 2) ** 2 * altitude_steps) / altitude_steps)
+        #generate_noise_2d(self.state.shape,8) / 2 + 1 / 2,
+((generate_noise_2d(self.state.shape,16) + 1) / 8),
+        (generate_noise_2d(self.state.shape,128) / 2 + 1 / 2) ,]
+        self.altitude_map = (np.ceil(sum(altitude_components) * altitude_steps) / altitude_steps)
         pass
     @property
     def age(self):
@@ -80,7 +79,7 @@ class SimulationState:
         fire_becomes_ash = np.logical_and(fire, tree_becomes_fire == 0) #was fire and is not about to become fire
         final = (trees ^ tree_becomes_fire) + tree_becomes_fire * CellStates.fire.value
         
-        fire_becomes_fire = num_fire_neighbors * fire * (np.random.random_sample(self.state.shape) <= chance_fire_sustain)
+        fire_becomes_fire = num_fire_neighbors * fire * (np.random.random_sample(self.state.shape) <= chance_fire_sustain / self.times_burned)
         overwrite_with_nonzero(next_frame_buffer, tree_becomes_fire * CellStates.fire.value)
         overwrite_with_nonzero(next_frame_buffer, fire_becomes_ash * CellStates.ash.value)
         overwrite_with_nonzero(next_frame_buffer, fire_becomes_fire * CellStates.fire.value)
@@ -113,9 +112,15 @@ def generate_forest(x, y, tree_density=0.8, **kwargs) -> np.array:
     #river_noise_thresh = 0.02
     #rivers_layer[rivers_noise >= river_noise_thresh] = 0
     #rivers_layer[rivers_noise < river_noise_thresh] = 1
+    land_bridge_thresh = 0.05
+    land_bridge_layer = generate_noise_2d(forest.shape,256)
+    land_bridge_layer = np.sign(land_bridge_layer) * np.abs(land_bridge_layer) 
+    land_bridge_layer[np.logical_and(land_bridge_layer < land_bridge_thresh, land_bridge_layer > - land_bridge_thresh)] = 1
+    land_bridge_layer_mask = np.ceil(land_bridge_layer[np.logical_and(land_bridge_layer < 0.2, land_bridge_layer > - 0.2)]).astype(int)
     noise_grid = sum([((l + 1) / 2) ** 2  for l in noise_layers]) - (generate_noise_2d(forest.shape,32))
     forest[noise_grid >= tree_density] = CellStates.tree.value
     forest[noise_grid < tree_density] = CellStates.pond.value
+    forest[land_bridge_layer == 1] = CellStates.tree.value
     #forest[rivers_layer == 1] = CellStates.pond.value
     return forest
 

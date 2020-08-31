@@ -44,7 +44,9 @@ def generate_noise_2d(shape,feature_size=4) -> np.array:
     arr = np.ones((width,height))
     for y in range(height):
         for x in range(width):
-            arr[y,x] = simplex.noise2d((x + offsets[0]) / feature_size,(y + offsets[1]) / feature_size)
+            #arr[y,x] = simplex.noise2d((x + offsets[0]) / feature_size,(y +
+            #offsets[1]) / feature_size)
+            arr[y,x] = snoise2((x + offsets[0]) / feature_size,(y + offsets[1]) / feature_size,octaves)
     return arr
 
 def quantize_layer(arr:np.array,steps:int):

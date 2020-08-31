@@ -34,8 +34,7 @@ def ones_to_color(arr:np.array, color:Tuple[int,int,int]):
 def repeated_trials(p_trial,n_trials):
     return 1 - (1 - p_trial) ** n_trials
 
-def generate_noise_2d(shape,feature_size=4) -> np.array:
-    octaves = 1
+def generate_noise_2d(shape,feature_size=4,octaves=1) -> np.array:
     freq = 16.0 * octaves
     offsets = (random.randrange(4096),random.randrange(4096))
     width = shape[1]
@@ -46,7 +45,7 @@ def generate_noise_2d(shape,feature_size=4) -> np.array:
         for x in range(width):
             #arr[y,x] = simplex.noise2d((x + offsets[0]) / feature_size,(y +
             #offsets[1]) / feature_size)
-            arr[y,x] = snoise2((x + offsets[0]) / feature_size,(y + offsets[1]) / feature_size,octaves)
+            arr[y,x] = pnoise2((x + offsets[0]) / feature_size,(y + offsets[1]) / feature_size,octaves)
     return arr
 
 def quantize_layer(arr:np.array,steps:int):
@@ -140,10 +139,10 @@ def generate_forest(x, y, tree_density=0.5, **kwargs) -> np.array:
 
     rivers_thresh = 0.05
 
-    rivers_layer = generate_noise_2d(forest.shape,32)
+    rivers_layer = generate_noise_2d(forest.shape,32) + generate_noise_2d(forest.shape,32)
     rivers_layer_mask = np.logical_and(rivers_layer < rivers_thresh, rivers_layer > - rivers_thresh)
-    rivers_tiny_layer = generate_noise_2d(forest.shape,12)
-    rivers_tiny_layer_mask = np.logical_and(rivers_tiny_layer < rivers_thresh * 1.5, rivers_tiny_layer > - rivers_thresh)
+    rivers_tiny_layer = generate_noise_2d(forest.shape,16,octaves=1) + generate_noise_2d(forest.shape,16,octaves=1)
+    rivers_tiny_layer_mask = np.logical_and(rivers_tiny_layer < rivers_thresh , rivers_tiny_layer > - rivers_thresh)
     # Apply normal size rivers
     rivers_layer[np.logical_and(rivers_layer_mask, #slice the noise to select blobby circularish regions
                                 river_obstacles_layer < 0)] = 1
@@ -151,7 +150,7 @@ def generate_forest(x, y, tree_density=0.5, **kwargs) -> np.array:
     rivers_tiny_layer[np.logical_and(rivers_tiny_layer_mask, #slice the noise to select blobby circularish regions
         generate_noise_2d(forest.shape,32) < 0)] = 1
     # ===== Oceans =====
-    oceans_thresh = 0.3
+    oceans_thresh = 0.2
     oceans_layer = np.abs(generate_noise_2d(forest.shape,256)) + (generate_noise_2d(forest.shape,8) ** 2) / 8
     oceans_layer[oceans_layer > oceans_thresh] = 1
 
@@ -160,9 +159,13 @@ def generate_forest(x, y, tree_density=0.5, **kwargs) -> np.array:
         (land_bridge_layer,colors.GREEN),
         (rivers_layer,colors.LIGHTBLUE),
         (rivers_tiny_layer,colors.LIGHTBLUE)]
-    colored_layers = [ones_to_color(*args) for args in layers_and_colors]
+    #colored_layers = [ones_to_color(*args) for args in layers_and_colors]
+    colored_layers = [oceans_layer,
+        land_bridge_layer,
+        rivers_layer,
+        rivers_tiny_layer]
     cv2.imshow("layers", 
-        cv2.cvtColor(np.concatenate(colored_layers,axis=1).astype('float32'), cv2.COLOR_RGB2BGR) / 255)
+        cv2.cvtColor(np.concatenate(colored_layers,axis=1).astype('float32'), cv2.COLOR_RGB2BGR))
     forest[oceans_layer == 1] = CellStates.pond.value
     forest[land_bridge_layer == 1] = CellStates.tree.value
     forest[rivers_layer == 1] = CellStates.pond.value

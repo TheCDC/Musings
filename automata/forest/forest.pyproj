@@ -26,6 +26,9 @@
     <Content Include="screenshots\3.png" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="colors.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="cv2_utils.py">
       <SubType>Code</SubType>
     </Compile>

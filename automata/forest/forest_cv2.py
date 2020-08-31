@@ -60,17 +60,18 @@ class Game():
         self.simulation_parameters = None
         self.simulation = None
         self.previous_state = None
-        self.paused :bool = False
+        self.paused :bool = True
         self.color_buffer = np.zeros((self.simulation_height,self.simulation_height,3))
+        self.is_lit = False
     def setup(self):
         self.paused :bool = True
+        self.is_lit = False
         self.simulation_parameters = dict(tree_density=random.random() * 0.7,
             chance_spread_fire_to_tree=random.random() / 2 + 0.1,
             chance_fire_sustain=random.random(),
             chance_spread_fire_to_ash=random.random() * 0.9)
         self.simulation : forest.SimulationState = forest.SimulationState(self.simulation_height, self.simulation_height)
         self.previous_state : forest.SimulationState = self.simulation
-        self.update(0,force=True)
         start_time :int = int(round(time.time() * 1000))
         self.state :np.array = self.simulation.state
 
@@ -149,6 +150,9 @@ class Game():
     def update(self, delta_time,force=False):
         if self.paused and not force:
             return
+        if not self.is_lit:
+            self.simulation.set_fire()
+            self.is_lit = True
         self.previous_state = self.simulation.state
         self.simulation.step(**self.simulation_parameters)
         self.state = self.simulation.state

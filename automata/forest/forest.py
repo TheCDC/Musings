@@ -8,7 +8,8 @@ from cv2_utils import numpy_to_cv2
 from opensimplex import OpenSimplex
 from typing import Generator, Tuple
 from scipy.ndimage import convolve
-
+import colors
+from noise import pnoise2, snoise2
 KERNEL_IMMEDIATE_NEIGHBORS = np.array([[1,1,1],
                                        [1,0,1],
                                        [1,1,1]])
@@ -22,10 +23,21 @@ class CellStates(enum.Enum):
 
 adjacent_offsets = [(-1, 1), (0, 1), (1, 1), (-1, 0), (0, 0), (1, 0), (-1, -1),
                     (0, -1), (1, -1)]
+
+def ones_to_color(arr:np.array, color:Tuple[int,int,int]):
+    rs = np.repeat(arr[:,:,np.newaxis],3,axis=2) #repeat the value on the second axis into the third dimension three times
+    #rs = arr.reshape((arr.shape[0],arr.shape[1],3))
+    mask = arr == 1
+    rs[mask] = color
+    return rs
+
 def repeated_trials(p_trial,n_trials):
     return 1 - (1 - p_trial) ** n_trials
+
 def generate_noise_2d(shape,feature_size=4) -> np.array:
-    offsets = (random.randrange(1024),random.randrange(1024))
+    octaves = 1
+    freq = 16.0 * octaves
+    offsets = (random.randrange(4096),random.randrange(4096))
     width = shape[1]
     height = shape[0]
     simplex = OpenSimplex(seed=random.randrange(0,2048 ** 2))
@@ -37,22 +49,27 @@ def generate_noise_2d(shape,feature_size=4) -> np.array:
 
 def quantize_layer(arr:np.array,steps:int):
     return  (np.ceil(np.abs(arr) * steps) / steps)
+
 class SimulationState:
     def __init__(self, x: int=10, y: int=10, tree_density=0.5,):
-        self.state :np.array = set_fire(generate_forest(x, y, tree_density))
+        self.state :np.array = generate_forest(x, y, tree_density)
+                                        
         self._age = 0
         self.times_burned = np.zeros(self.state.shape)
         altitude_steps = 12
         altitude_components = [#((((forest.generate_noise_2d(self.simulation.state.shape,8) + 1) /
         #2) ** 4) * 2) - 1,
         #generate_noise_2d(self.state.shape,8) / 2 + 1 / 2,
-((generate_noise_2d(self.state.shape,16) + 1) / 8),
+        ((generate_noise_2d(self.state.shape,16) + 1) / 8),
         (generate_noise_2d(self.state.shape,128) / 2 + 1 / 2) ,]
         #self.altitude_map = (np.ceil(sum(altitude_components) *
         #altitude_steps) / altitude_steps)
         self.altitude_map = quantize_layer(sum(altitude_components),altitude_steps)
         self.temperature_map = generate_noise_2d(self.state.shape,128)
-        
+
+    def set_fire(self):
+        self.state :np.array = set_fire(self.state)
+
     @property
     def age(self):
         return self._age
@@ -137,10 +154,13 @@ def generate_forest(x, y, tree_density=0.5, **kwargs) -> np.array:
     oceans_layer[oceans_layer > oceans_thresh] = 1
 
     # ===== Apply Layers =====
-    cv2.imshow("oceans_layer",oceans_layer)
-    cv2.imshow("land_bridge_layer",land_bridge_layer)
-    cv2.imshow("rivers_layer",rivers_layer)
-    cv2.imshow("rivers_tiny_layer",rivers_tiny_layer)
+    layers_and_colors = [(oceans_layer,colors.LIGHTBLUE),
+        (land_bridge_layer,colors.GREEN),
+        (rivers_layer,colors.LIGHTBLUE),
+        (rivers_tiny_layer,colors.LIGHTBLUE)]
+    colored_layers = [ones_to_color(*args) for args in layers_and_colors]
+    cv2.imshow("layers", 
+        cv2.cvtColor(np.concatenate(colored_layers,axis=1).astype('float32'), cv2.COLOR_RGB2BGR) / 255)
     forest[oceans_layer == 1] = CellStates.pond.value
     forest[land_bridge_layer == 1] = CellStates.tree.value
     forest[rivers_layer == 1] = CellStates.pond.value

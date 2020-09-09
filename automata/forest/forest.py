@@ -35,7 +35,6 @@ def repeated_trials(p_trial,n_trials):
     return 1 - (1 - p_trial) ** n_trials
 
 def generate_noise_2d(shape,feature_size=4,octaves=1) -> np.array:
-    freq = 16.0 * octaves
     offsets = (random.randrange(4096),random.randrange(4096))
     width = shape[1]
     height = shape[0]
@@ -121,12 +120,15 @@ def overwrite_with_nonzero(bottom:np.array,top:np.array) -> None:
     return bottom
 
 def generate_grid_coordinates(arr: np.array) -> Generator[Tuple[int],None,None]:
+    """Iterate over all combinations of x,y coordinates"""
     for y in range(arr.shape[0]):
         for x in range(arr.shape[1]):
             yield x, y
 
 
 def generate_forest(x, y, tree_density=0.5, **kwargs) -> np.array:
+    """Generate a 2d numpy addary filled with CellStates
+    Heavily uses Perlin noise."""
     forest = np.full((y, x),CellStates.tree.value)
   
     # ===== Land Bridges =====
@@ -139,7 +141,7 @@ def generate_forest(x, y, tree_density=0.5, **kwargs) -> np.array:
 
     rivers_thresh = 0.05
 
-    rivers_layer = generate_noise_2d(forest.shape,32) + generate_noise_2d(forest.shape,32)
+    rivers_layer = generate_noise_2d(forest.shape,32) + generate_noise_2d(forest.shape,32,octaves=2)
     rivers_layer_mask = np.logical_and(rivers_layer < rivers_thresh, rivers_layer > - rivers_thresh)
     rivers_tiny_layer = generate_noise_2d(forest.shape,16,octaves=1) + generate_noise_2d(forest.shape,16,octaves=1)
     rivers_tiny_layer_mask = np.logical_and(rivers_tiny_layer < rivers_thresh , rivers_tiny_layer > - rivers_thresh)
@@ -148,10 +150,10 @@ def generate_forest(x, y, tree_density=0.5, **kwargs) -> np.array:
                                 river_obstacles_layer < 0)] = 1
     # Apply tiny rivers
     rivers_tiny_layer[np.logical_and(rivers_tiny_layer_mask, #slice the noise to select blobby circularish regions
-        generate_noise_2d(forest.shape,32) < 0)] = 1
+        river_obstacles_layer < 0)] = 1
     # ===== Oceans =====
-    oceans_thresh = 0.2
-    oceans_layer = np.abs(generate_noise_2d(forest.shape,256)) + (generate_noise_2d(forest.shape,8) ** 2) / 8
+    oceans_thresh = 0.3
+    oceans_layer = np.abs(generate_noise_2d(forest.shape,256)) + (generate_noise_2d(forest.shape,8) * 0.5 + 0.5) / 8 + (generate_noise_2d(forest.shape,32) * 0.5 + 0.5) / 8
     oceans_layer[oceans_layer > oceans_thresh] = 1
 
     # ===== Apply Layers =====
@@ -173,6 +175,7 @@ def generate_forest(x, y, tree_density=0.5, **kwargs) -> np.array:
     return forest
 
 def set_fire(forest):
+    """Set a random number of forest tiles on fire"""
     new_forest = np.copy(forest)
     num_fires = random.randint(1, math.ceil(len(forest) ** (1 / 2)))
     trees = np.where(new_forest == CellStates.tree.value)

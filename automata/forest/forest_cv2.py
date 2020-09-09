@@ -131,9 +131,9 @@ class Game():
         self.color_buffer[fire] = state_to_color[forest.CellStates.fire.value]
         self.color_buffer[ash] = (ash_color_layer * (0.90 ** self.simulation.times_burned.reshape(color_map_scalar_shape)))[ash]
 
-
-
-        img = zoom(self.color_buffer,(self.cell_height,self.cell_height,1),order=0) / 255
+        #Resize image for a nicer display
+        img = cv2.resize(self.color_buffer.astype('float32') / 255,None, fx=4,fy=4,interpolation = cv2.INTER_AREA) 
+        #OpenCV uses color channels in a different order (BGR instead of RGB)
         img = cv2.cvtColor(img.astype('float32'), cv2.COLOR_RGB2BGR)
         s = img.shape
 

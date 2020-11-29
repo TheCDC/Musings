@@ -1,14 +1,15 @@
 # https://www.reddit.com/r/learnpython/comments/b6iu6z/forest_fire_simulation_program_help/
 import random
 import enum
-import copy
 import math
 import numpy as np
-
+import cv2
+from cv2_utils import numpy_to_cv2
 from opensimplex import OpenSimplex
-from typing import Generator, Tuple, Set
+from typing import Generator, Tuple
 from scipy.ndimage import convolve
-
+import colors
+from noise import pnoise2, snoise2
 KERNEL_IMMEDIATE_NEIGHBORS = np.array([[1,1,1],
                                        [1,0,1],
                                        [1,1,1]])
@@ -22,23 +23,54 @@ class CellStates(enum.Enum):
 
 adjacent_offsets = [(-1, 1), (0, 1), (1, 1), (-1, 0), (0, 0), (1, 0), (-1, -1),
                     (0, -1), (1, -1)]
+
+def ones_to_color(arr:np.array, color:Tuple[int,int,int]):
+    rs = np.repeat(arr[:,:,np.newaxis],3,axis=2) #repeat the value on the second axis into the third dimension three times
+    #rs = arr.reshape((arr.shape[0],arr.shape[1],3))
+    mask = arr == 1
+    rs[mask] = color
+    return rs
+
 def repeated_trials(p_trial,n_trials):
     return 1 - (1 - p_trial) ** n_trials
-def generate_noise_2d(shape,feature_size=4) -> np.array:
+
+def generate_noise_2d(shape,feature_size=4,octaves=1) -> np.array:
+    freq = 16.0 * octaves
+    offsets = (random.randrange(4096),random.randrange(4096))
     width = shape[1]
     height = shape[0]
-    simplex = OpenSimplex(seed=random.randrange(0,2048))
+    simplex = OpenSimplex(seed=random.randrange(0,2048 ** 2))
     arr = np.ones((width,height))
     for y in range(height):
         for x in range(width):
-            arr[y,x] = simplex.noise2d(x / feature_size,y / feature_size)
+            #arr[y,x] = simplex.noise2d((x + offsets[0]) / feature_size,(y +
+            #offsets[1]) / feature_size)
+            arr[y,x] = pnoise2((x + offsets[0]) / feature_size,(y + offsets[1]) / feature_size,octaves)
     return arr
+
+def quantize_layer(arr:np.array,steps:int):
+    return  (np.ceil(np.abs(arr) * steps) / steps)
 
 class SimulationState:
     def __init__(self, x: int=10, y: int=10, tree_density=0.5,):
-        self.state :np.array = set_fire(generate_forest(x, y, tree_density))
+        self.state :np.array = generate_forest(x, y, tree_density)
+                                        
         self._age = 0
-        self.times_burned = np.ones(self.state.shape)
+        self.times_burned = np.zeros(self.state.shape)
+        altitude_steps = 12
+        altitude_components = [#((((forest.generate_noise_2d(self.simulation.state.shape,8) + 1) /
+        #2) ** 4) * 2) - 1,
+        #generate_noise_2d(self.state.shape,8) / 2 + 1 / 2,
+        ((generate_noise_2d(self.state.shape,16) + 1) / 8),
+        (generate_noise_2d(self.state.shape,128) / 2 + 1 / 2) ,]
+        #self.altitude_map = (np.ceil(sum(altitude_components) *
+        #altitude_steps) / altitude_steps)
+        self.altitude_map = quantize_layer(sum(altitude_components),altitude_steps)
+        self.temperature_map = generate_noise_2d(self.state.shape,128)
+
+    def set_fire(self):
+        self.state :np.array = set_fire(self.state)
+
     @property
     def age(self):
         return self._age
@@ -72,7 +104,7 @@ class SimulationState:
         fire_becomes_ash = np.logical_and(fire, tree_becomes_fire == 0) #was fire and is not about to become fire
         final = (trees ^ tree_becomes_fire) + tree_becomes_fire * CellStates.fire.value
         
-        fire_becomes_fire = num_fire_neighbors * fire * (np.random.random_sample(self.state.shape) <= chance_fire_sustain)
+        fire_becomes_fire = num_fire_neighbors * fire * (np.random.random_sample(self.state.shape) <= chance_fire_sustain / self.times_burned)
         overwrite_with_nonzero(next_frame_buffer, tree_becomes_fire * CellStates.fire.value)
         overwrite_with_nonzero(next_frame_buffer, fire_becomes_ash * CellStates.ash.value)
         overwrite_with_nonzero(next_frame_buffer, fire_becomes_fire * CellStates.fire.value)
@@ -94,21 +126,51 @@ def generate_grid_coordinates(arr: np.array) -> Generator[Tuple[int],None,None]:
             yield x, y
 
 
-def generate_forest(x, y, tree_density=0.8, **kwargs) -> np.array:
-    available_states = [CellStates.tree, CellStates.pond]
-    forest = np.zeros((y, x))
-    noise_layers = [generate_noise_2d(forest.shape,4),
-        generate_noise_2d(forest.shape,8),
-        generate_noise_2d(forest.shape,64),]
-    noise_grid = sum([((l + 1) / 2) ** 2 for l in noise_layers]) - (generate_noise_2d(forest.shape,32))
-    for x, y in generate_grid_coordinates(forest):
-        noise_is_high = (noise_grid[y][x]) > (tree_density)
-        if noise_is_high:
-            forest[y][x] = CellStates.tree.value
-        else:
-            forest[y][x] = CellStates.pond.value
-    return forest
+def generate_forest(x, y, tree_density=0.5, **kwargs) -> np.array:
+    forest = np.full((y, x),CellStates.tree.value)
+  
+    # ===== Land Bridges =====
+    land_bridge_thresh = 0.3
+    land_bridge_layer = np.abs(generate_noise_2d(forest.shape,128)) + generate_noise_2d(forest.shape,16) ** 2 / 8 - generate_noise_2d(forest.shape,16) ** 2
 
+    land_bridge_layer[land_bridge_layer > land_bridge_thresh] = 1
+    # ===== Rivers =====
+    river_obstacles_layer = generate_noise_2d(forest.shape,64)
+
+    rivers_thresh = 0.05
+
+    rivers_layer = generate_noise_2d(forest.shape,32) + generate_noise_2d(forest.shape,32)
+    rivers_layer_mask = np.logical_and(rivers_layer < rivers_thresh, rivers_layer > - rivers_thresh)
+    rivers_tiny_layer = generate_noise_2d(forest.shape,16,octaves=1) + generate_noise_2d(forest.shape,16,octaves=1)
+    rivers_tiny_layer_mask = np.logical_and(rivers_tiny_layer < rivers_thresh , rivers_tiny_layer > - rivers_thresh)
+    # Apply normal size rivers
+    rivers_layer[np.logical_and(rivers_layer_mask, #slice the noise to select blobby circularish regions
+                                river_obstacles_layer < 0)] = 1
+    # Apply tiny rivers
+    rivers_tiny_layer[np.logical_and(rivers_tiny_layer_mask, #slice the noise to select blobby circularish regions
+        generate_noise_2d(forest.shape,32) < 0)] = 1
+    # ===== Oceans =====
+    oceans_thresh = 0.2
+    oceans_layer = np.abs(generate_noise_2d(forest.shape,256)) + (generate_noise_2d(forest.shape,8) ** 2) / 8
+    oceans_layer[oceans_layer > oceans_thresh] = 1
+
+    # ===== Apply Layers =====
+    layers_and_colors = [(oceans_layer,colors.LIGHTBLUE),
+        (land_bridge_layer,colors.GREEN),
+        (rivers_layer,colors.LIGHTBLUE),
+        (rivers_tiny_layer,colors.LIGHTBLUE)]
+    #colored_layers = [ones_to_color(*args) for args in layers_and_colors]
+    colored_layers = [oceans_layer,
+        land_bridge_layer,
+        rivers_layer,
+        rivers_tiny_layer]
+    cv2.imshow("layers", 
+        cv2.cvtColor(np.concatenate(colored_layers,axis=1).astype('float32'), cv2.COLOR_RGB2BGR))
+    forest[oceans_layer == 1] = CellStates.pond.value
+    forest[land_bridge_layer == 1] = CellStates.tree.value
+    forest[rivers_layer == 1] = CellStates.pond.value
+    forest[rivers_tiny_layer == 1] = CellStates.pond.value
+    return forest
 
 def set_fire(forest):
     new_forest = np.copy(forest)
@@ -118,7 +180,8 @@ def set_fire(forest):
     random.shuffle(possible_coordinates)
     to_set_fire = possible_coordinates[:num_fires]
     r = tuple(zip(*to_set_fire)) #wrangle coordinates back from ((x0,y0),(x1,y1)) to ((x0,x1,...),(y0,y2,...))
-    new_forest[r] = CellStates.fire.value
+    if len(r) > 0:
+        new_forest[r] = CellStates.fire.value
     return new_forest
 
 

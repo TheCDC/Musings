@@ -11,3 +11,4 @@ scipy = "*"
 noise = "*"
 
 [dev-packages]
+pylint = "*"

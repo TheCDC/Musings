@@ -138,8 +138,8 @@ class Game():
         s = img.shape
 
         #=========== Set up mouse click event handler ==========
-        cv2.setMouseCallback(self.window_name, self.mouse_click) 
         cv2.imshow(self.window_name, img)
+        cv2.setMouseCallback(self.window_name, self.mouse_click) 
         cv2.waitKey(1)
 
         cv2.imshow("times_burned",(self.simulation.times_burned >= 1).astype('float32'))

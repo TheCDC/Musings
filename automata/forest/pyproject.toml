@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "forest-simulation"
+version = "0.1.0"
+description = ""
+authors = ["christoipher.chen@gmail.com <christoipher.chen@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+scipy = "^1.5.4"
+numpy = "^1.19.4"
+opensimplex = "^0.3"
+noise = "^1.2.2"
+opencv-python = "^4.4.0"
+arcade = "^2.4.3"
+
+[tool.poetry.dev-dependencies]
+pytest = "^5.2"
+pylint = "^2.6.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

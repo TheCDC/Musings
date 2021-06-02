@@ -5,7 +5,8 @@
 		}
 	],
 	"settings": {
-		"python.venvPath": "~/.cache/pypoetry/virtualenvs"
+		"python.venvPath": "~/.cache/pypoetry/virtualenvs",
+		"python.pythonPath": ".venv\\Scripts\\python.exe"
 	},
 	"launch": {
 		"version": "0.2.0",

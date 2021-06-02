@@ -52,7 +52,8 @@ def generate_noise_2d(
     shape, feature_size=4, octaves=1, x_offsets=None, y_offsets=None
 ) -> np.array:
     freq = 16.0 * octaves
-    offsets = (random.randrange(4096), random.randrange(4096))
+    offset_max = 4096 ** 2
+    offsets = (random.randrange(offset_max), random.randrange(offset_max))
     width = shape[1]
     height = shape[0]
     simplex = OpenSimplex(seed=random.randrange(0, 2048 ** 2))
@@ -199,46 +200,62 @@ def generate_forest(x, y, tree_density=0.5, **kwargs) -> np.array:
     forest = np.full((y, x), CellStates.tree.value)
 
     # ===== Land Bridges =====
-    land_bridge_thresh = 0.3
+    land_bridge_thresh = 0.2
     land_bridge_layer = (
-        np.abs(generate_noise_2d(forest.shape, 128))
-        + generate_noise_2d(forest.shape, 16) ** 2 / 8
-        - generate_noise_2d(forest.shape, 16) ** 2
+        np.abs(generate_noise_2d(forest.shape, 64))
+        + generate_noise_2d(forest.shape, 8) ** 2 / 8
+        - generate_noise_2d(forest.shape, 8) ** 2
     )
 
     land_bridge_layer[land_bridge_layer > land_bridge_thresh] = 1
     # ===== Rivers =====
     river_obstacles_layer = generate_noise_2d(forest.shape, 64)
 
-    rivers_thresh = 0.05
+    rivers_thresh_floor = 0.04
     rivers_offset_size = 32
-    rivers_offset_octaves = 32
-    rivers_x_offset = generate_noise_2d(
-        forest.shape, rivers_offset_size, octaves=rivers_offset_octaves
+    rivers_offset_octaves = 16
+    rivers_x_offset = (
+        generate_noise_2d(
+            forest.shape, rivers_offset_size, octaves=rivers_offset_octaves
+        )
+        * 3
     )
-    rivers_y_offset = generate_noise_2d(
-        forest.shape, rivers_offset_size, octaves=rivers_offset_octaves
+    rivers_y_offset = (
+        generate_noise_2d(
+            forest.shape, rivers_offset_size, octaves=rivers_offset_octaves
+        )
+        * 3
     )
 
     rivers_layer = generate_noise_2d(
-        forest.shape, 32, x_offsets=rivers_x_offset, y_offsets=rivers_y_offset,octaves=16
+        forest.shape,
+        64 + 32,
+        x_offsets=rivers_x_offset,
+        y_offsets=rivers_y_offset,
+        octaves=64,
     )
-    rivers_layer_mask = np.logical_and(
-        rivers_layer < rivers_thresh, rivers_layer > -rivers_thresh
-    )
+    # rivers_layer_mask = np.logical_and(
+    #     rivers_layer < rivers_thresh, rivers_layer > -rivers_thresh
+    # )
+    rivers_layer[
+        np.logical_and(
+            rivers_layer < rivers_thresh_floor, rivers_layer > -rivers_thresh_floor
+        )
+    ] = 1
     rivers_tiny_layer = generate_noise_2d(
         forest.shape, 16, octaves=1
     ) + generate_noise_2d(forest.shape, 16, octaves=1)
     rivers_tiny_layer_mask = np.logical_and(
-        rivers_tiny_layer < rivers_thresh, rivers_tiny_layer > -rivers_thresh
+        rivers_tiny_layer < rivers_thresh_floor,
+        rivers_tiny_layer > -rivers_thresh_floor,
     )
     # Apply normal size rivers
-    rivers_layer[
-        np.logical_and(
-            rivers_layer_mask,  # slice the noise to select blobby circularish regions
-            river_obstacles_layer < 0,
-        )
-    ] = 1
+    # rivers_layer[
+    #     np.logical_and(
+    #         rivers_layer_mask,  # slice the noise to select blobby circularish regions
+    #         river_obstacles_layer < 0,
+    #     )
+    # ] = 1
     # Apply tiny rivers
     rivers_tiny_layer[
         np.logical_and(
@@ -247,7 +264,7 @@ def generate_forest(x, y, tree_density=0.5, **kwargs) -> np.array:
         )
     ] = 1
     # ===== Oceans =====
-    oceans_thresh = 0.2
+    oceans_thresh = 0.1
     oceans_offsets_size = 32
     oceans_x_offset = generate_noise_2d(forest.shape, oceans_offsets_size, octaves=8)
     oceans_y_offset = generate_noise_2d(forest.shape, oceans_offsets_size, octaves=8)
@@ -258,10 +275,20 @@ def generate_forest(x, y, tree_density=0.5, **kwargs) -> np.array:
                 256 + 128,
                 x_offsets=oceans_x_offset,
                 y_offsets=oceans_y_offset,
+                octaves=32,
+            )
+        )
+        + np.abs(
+            generate_noise_2d(
+                forest.shape,
+                64,
+                x_offsets=oceans_x_offset,
+                y_offsets=oceans_y_offset,
                 octaves=8,
             )
         )
-        + (generate_noise_2d(forest.shape, 8) ** 2) / 8
+        ** 2
+        # + (generate_noise_2d(forest.shape, 8) ** 2) / 8
     )
     oceans_layer[oceans_layer > oceans_thresh] = 1
 

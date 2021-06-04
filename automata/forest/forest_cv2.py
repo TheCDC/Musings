@@ -161,9 +161,11 @@ class Game:
 
         self.color_buffer[trees] = (
             (
-                snow_color_layer * 0.4
-                + tree_color_layer * 0.2
-                + dry_tree_color_layer * 0.4
+                (
+                    snow_color_layer * 0.6
+                    + tree_color_layer * 0.2
+                    + dry_tree_color_layer * 0.2
+                )
             )
         )[trees]
         self.color_buffer[pond] = (

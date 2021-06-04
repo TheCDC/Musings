@@ -48,6 +48,25 @@ def repeated_trials(p_trial, n_trials):
     return 1 - (1 - p_trial) ** n_trials
 
 
+def generate_noise_2d_crinkly(
+    shape,
+    feature_size=4,
+    octaves=1,
+    crinkle_size=32,
+    crinkle_octaves=8,
+    crinkle_scalar=3,
+) -> np.array:
+    x_offsets = (
+        generate_noise_2d(shape, crinkle_size, octaves=crinkle_octaves) * crinkle_scalar
+    )
+    y_offsets = (
+        generate_noise_2d(shape, crinkle_size, octaves=crinkle_octaves) * crinkle_scalar
+    )
+    return generate_noise_2d(
+        shape=shape,octaves=octaves, feature_size=feature_size, x_offsets=x_offsets, y_offsets=y_offsets
+    )
+
+
 def generate_noise_2d(
     shape, feature_size=4, octaves=1, x_offsets=None, y_offsets=None
 ) -> np.array:
@@ -95,13 +114,21 @@ class SimulationState:
         altitude_components = [  # ((((forest.generate_noise_2d(self.simulation.state.shape,8) + 1) /
             # 2) ** 4) * 2) - 1,
             # generate_noise_2d(self.state.shape,8) / 2 + 1 / 2,
-            ((generate_noise_2d(self.state.shape, 16) + 1) / 8),
-            (generate_noise_2d(self.state.shape, 128) / 2 + 1 / 2),
+            ((generate_noise_2d(self.state.shape, 16) + 1) / 8) ** 2,
+            (generate_noise_2d(self.state.shape, 128) + 1) / 2,
         ]
         # self.altitude_map = (np.ceil(sum(altitude_components) *
         # altitude_steps) / altitude_steps)
         self.altitude_map = quantize_layer(sum(altitude_components), altitude_steps)
         self.temperature_map = generate_noise_2d(self.state.shape, 128)
+
+        cv2.imshow(
+            "altitude",
+            cv2.cvtColor(
+                np.concatenate([self.altitude_map], axis=1).astype("float32"),
+                cv2.COLOR_RGB2BGR,
+            ),
+        )
 
     def set_fire(self):
         self.state: np.array = set_fire(self.state)
@@ -212,7 +239,7 @@ def generate_forest(x, y, tree_density=0.5, **kwargs) -> np.array:
     river_obstacles_layer = generate_noise_2d(forest.shape, 64)
 
     rivers_thresh_floor = 0.04
-    rivers_offset_size = 32
+    rivers_offset_size = 128
     rivers_offset_octaves = 16
     rivers_x_offset = (
         generate_noise_2d(
@@ -227,12 +254,13 @@ def generate_forest(x, y, tree_density=0.5, **kwargs) -> np.array:
         * 3
     )
 
-    rivers_layer = generate_noise_2d(
+    rivers_layer = generate_noise_2d_crinkly(
         forest.shape,
-        64 + 32,
-        x_offsets=rivers_x_offset,
-        y_offsets=rivers_y_offset,
+        32,
         octaves=64,
+        crinkle_octaves=rivers_offset_octaves,
+        crinkle_size=rivers_offset_size,
+        crinkle_scalar=3,
     )
     # rivers_layer_mask = np.logical_and(
     #     rivers_layer < rivers_thresh, rivers_layer > -rivers_thresh
@@ -294,13 +322,13 @@ def generate_forest(x, y, tree_density=0.5, **kwargs) -> np.array:
 
     # ===== Apply Layers =====
     layers_and_colors = [
-        (oceans_layer, colors.LIGHTBLUE),
+        (oceans_layer, colors.BLUE),
         (land_bridge_layer, colors.GREEN),
-        (rivers_layer, colors.LIGHTBLUE),
-        (rivers_tiny_layer, colors.LIGHTBLUE),
+        (rivers_layer, colors.BLUE),
+        (rivers_tiny_layer, colors.BLUE),
     ]
-    # colored_layers = [ones_to_color(*args) for args in layers_and_colors]
-    colored_layers = [oceans_layer, land_bridge_layer, rivers_layer, rivers_tiny_layer]
+    colored_layers = [ones_to_color(*args) for args in layers_and_colors]
+    # colored_layers = [oceans_layer, land_bridge_layer, rivers_layer, rivers_tiny_layer]
     cv2.imshow(
         "layers",
         cv2.cvtColor(

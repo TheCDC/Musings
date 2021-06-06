@@ -26,7 +26,12 @@ class NoiseMapArgs:
     """An abstract object representing the parameters of a 2d noise map"""
 
     def __init__(
-        self, x0: float, y0: float, octaves: float, feature_size: float, seed: int = 0
+        self,
+        octaves: float,
+        feature_size: float,
+        x0: float = 0,
+        y0: float = 0,
+        seed: int = 0,
     ) -> None:
         if feature_size <= 0:
             raise ArgumentError("feature_size must be > 0")
@@ -78,7 +83,7 @@ def generate_noise_2d_crinkly(
     shape,
     noise_map: NoiseMapArgs,
     crinkle_map: NoiseMapArgs,
-    crinkle_scalar=3,
+    crinkle_scalar=1,
 ) -> np.array:
     x_offsets = (
         generate_noise_2d(shape, crinkle_map.feature_size, octaves=crinkle_map.octaves)
@@ -264,36 +269,53 @@ def generate_forest(x, y, tree_density=0.5, **kwargs) -> np.array:
 
     # ===== Land Bridges =====
     land_bridge_thresh = 0.2
+    land_bridge_noise_args_crinkle1 = NoiseMapArgs(
+        x0=0, y0=0, seed=random.randint(1, 4096), octaves=8, feature_size=4
+    )
+    land_bridge_noise_args_crinkle2 = NoiseMapArgs(
+        x0=0, y0=0, seed=random.randint(1, 4096), octaves=8, feature_size=16
+    )
     land_bridge_layer = (
-        np.abs(generate_noise_2d(forest.shape, 64))
-        + generate_noise_2d(forest.shape, 8) ** 2 / 8
-        - generate_noise_2d(forest.shape, 8) ** 2
+        np.abs(
+            generate_noise_2d_crinkly(
+                forest.shape,
+                noise_map=NoiseMapArgs(
+                    seed=random.randint(1, 4096), feature_size=64, octaves=4
+                ),
+                crinkle_map=land_bridge_noise_args_crinkle1,
+            )
+        )
+        + generate_noise_2d_crinkly(
+            forest.shape,
+            noise_map=NoiseMapArgs(
+                seed=random.randint(1, 4096), feature_size=8, octaves=8
+            ),
+            crinkle_map=land_bridge_noise_args_crinkle2,
+        )
+        ** 2
+        / 8
+        - generate_noise_2d_crinkly(
+            forest.shape,
+            noise_map=NoiseMapArgs(
+                seed=random.randint(1, 4096), feature_size=8, octaves=8
+            ),
+            crinkle_map=land_bridge_noise_args_crinkle2,
+        )
+        ** 2
     )
 
     land_bridge_layer[land_bridge_layer > land_bridge_thresh] = 1
     # ===== Rivers =====
     river_obstacles_layer = generate_noise_2d(forest.shape, 64)
 
-    rivers_thresh_floor = 0.04
+    rivers_thresh_floor = 0.05
     rivers_offset_size = 128
     rivers_offset_octaves = 16
-    rivers_x_offset = (
-        generate_noise_2d(
-            forest.shape, rivers_offset_size, octaves=rivers_offset_octaves
-        )
-        * 3
-    )
-    rivers_y_offset = (
-        generate_noise_2d(
-            forest.shape, rivers_offset_size, octaves=rivers_offset_octaves
-        )
-        * 3
-    )
 
     rivers_layer = generate_noise_2d_crinkly(
         forest.shape,
         noise_map=NoiseMapArgs(
-            x0=0, y0=0, octaves=64, feature_size=32, seed=random.randint(1, 4096)
+            x0=0, y0=0, octaves=64, feature_size=64, seed=random.randint(1, 4096)
         ),
         crinkle_map=NoiseMapArgs(
             x0=0,
@@ -304,17 +326,43 @@ def generate_forest(x, y, tree_density=0.5, **kwargs) -> np.array:
         ),
         crinkle_scalar=3,
     )
-    # rivers_layer_mask = np.logical_and(
-    #     rivers_layer < rivers_thresh, rivers_layer > -rivers_thresh
-    # )
     rivers_layer[
         np.logical_and(
             rivers_layer < rivers_thresh_floor, rivers_layer > -rivers_thresh_floor
         )
     ] = 1
-    rivers_tiny_layer = generate_noise_2d(
-        forest.shape, 16, octaves=1
-    ) + generate_noise_2d(forest.shape, 16, octaves=1)
+    rivers_tiny_layer_noise_args_crinkly = NoiseMapArgs(
+        octaves=64,
+        feature_size=32,
+        seed=random.randint(1, 4096),
+    )
+    # rivers_tiny_layer = generate_noise_2d(
+    #     forest.shape, 16, octaves=1
+    # ) + generate_noise_2d(forest.shape, 16, octaves=1)
+    rivers_tiny_layer = (
+        generate_noise_2d_crinkly(
+            forest.shape,
+            noise_map=NoiseMapArgs(
+                octaves=1,
+                feature_size=16,
+                seed=random.randint(1, 4096),
+            ),
+            crinkle_map=rivers_tiny_layer_noise_args_crinkly,
+            crinkle_scalar=16,
+        )
+        # + generate_noise_2d_crinkly(
+        #     forest.shape,
+        #     noise_map=NoiseMapArgs(
+        #         octaves=1,
+        #         feature_size=16,
+        #         seed=random.randint(1, 4096),
+        #     ),
+        #     crinkle_map=rivers_tiny_layer_noise_args_crinkly,
+        #     crinkle_scalar=8,
+        # )
+        
+    )
+
     rivers_tiny_layer_mask = np.logical_and(
         rivers_tiny_layer < rivers_thresh_floor,
         rivers_tiny_layer > -rivers_thresh_floor,

@@ -338,28 +338,40 @@ def generate_forest(x, y, tree_density=0.5, **kwargs) -> np.array:
     oceans_offsets_size = 32
     oceans_x_offset = generate_noise_2d(forest.shape, oceans_offsets_size, octaves=8)
     oceans_y_offset = generate_noise_2d(forest.shape, oceans_offsets_size, octaves=8)
+    oceans_noise_args_crinkle = NoiseMapArgs(
+        x0=0,
+        y0=0,
+        seed=random.randint(1, 4096),
+        octaves=8,
+        feature_size=oceans_offsets_size,
+    )
     oceans_layer = (
         np.abs(
-            generate_noise_2d(
+            generate_noise_2d_crinkly(
                 forest.shape,
-                256 + 128,
-                x_offsets=oceans_x_offset,
-                y_offsets=oceans_y_offset,
-                octaves=32,
+                noise_map=NoiseMapArgs(
+                    x0=0,
+                    y0=0,
+                    seed=random.randint(1, 4096),
+                    octaves=32,
+                    feature_size=256 + 128,
+                ),
+                crinkle_map=oceans_noise_args_crinkle,
             )
         )
         + np.abs(
-            generate_noise_2d(
+            generate_noise_2d_crinkly(
                 forest.shape,
-                64,
-                x_offsets=oceans_x_offset,
-                y_offsets=oceans_y_offset,
-                octaves=8,
+                noise_map=NoiseMapArgs(
+                    x0=0, y0=0, seed=random.randint(1, 4096), octaves=8, feature_size=64
+                ),
+                crinkle_map=oceans_noise_args_crinkle,
             )
         )
         ** 2
         # + (generate_noise_2d(forest.shape, 8) ** 2) / 8
     )
+
     oceans_layer[oceans_layer > oceans_thresh] = 1
 
     # ===== Apply Layers =====

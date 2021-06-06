@@ -6,7 +6,10 @@
 	],
 	"settings": {
 		"python.venvPath": "~/.cache/pypoetry/virtualenvs",
-		"python.pythonPath": ".venv\\Scripts\\python.exe"
+		"python.pythonPath": ".venv\\Scripts\\python.exe",
+		"cSpell.words": [
+			"pnoise"
+		]
 	},
 	"launch": {
 		"version": "0.2.0",

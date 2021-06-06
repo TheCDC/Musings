@@ -1,4 +1,5 @@
 # https://www.reddit.com/r/learnpython/comments/b6iu6z/forest_fire_simulation_program_help/
+from ctypes import ArgumentError
 import random
 import enum
 import math
@@ -19,6 +20,31 @@ class CellStates(enum.Enum):
     tree = 2
     ash = 3
     fire = 4
+
+
+class NoiseMapArgs:
+    """An abstract object representing the parameters of a 2d noise map"""
+
+    def __init__(
+        self, x0: float, y0: float, octaves: float, feature_size: float, seed: int = 0
+    ) -> None:
+        if feature_size <= 0:
+            raise ArgumentError("feature_size must be > 0")
+        self.x0 = x0
+        self.y0 = y0
+        self.octaves = octaves
+        self.feature_size = feature_size
+        self.seed = seed
+
+    def get(self, x: float, y: float) -> float:
+        xx = self.seed + (self.x0 + x) / self.feature_size
+        yy = self.seed + (self.y0 + y) / self.feature_size
+
+        return pnoise2(
+            xx,
+            yy,
+            self.octaves,
+        )
 
 
 adjacent_offsets = [
@@ -50,32 +76,42 @@ def repeated_trials(p_trial, n_trials):
 
 def generate_noise_2d_crinkly(
     shape,
-    feature_size=4,
-    octaves=1,
-    crinkle_size=32,
-    crinkle_octaves=8,
+    noise_map: NoiseMapArgs,
+    crinkle_map: NoiseMapArgs,
     crinkle_scalar=3,
 ) -> np.array:
     x_offsets = (
-        generate_noise_2d(shape, crinkle_size, octaves=crinkle_octaves) * crinkle_scalar
+        generate_noise_2d(shape, crinkle_map.feature_size, octaves=crinkle_map.octaves)
+        * crinkle_scalar
     )
     y_offsets = (
-        generate_noise_2d(shape, crinkle_size, octaves=crinkle_octaves) * crinkle_scalar
+        generate_noise_2d(shape, crinkle_map.feature_size, octaves=crinkle_map.octaves)
+        * crinkle_scalar
     )
     return generate_noise_2d(
-        shape=shape,octaves=octaves, feature_size=feature_size, x_offsets=x_offsets, y_offsets=y_offsets
+        shape=shape,
+        octaves=noise_map.octaves,
+        feature_size=noise_map.feature_size,
+        x_offsets=x_offsets,
+        y_offsets=y_offsets,
     )
 
 
 def generate_noise_2d(
-    shape, feature_size=4, octaves=1, x_offsets=None, y_offsets=None
+    shape,
+    feature_size=4,
+    octaves=1,
+    x_offsets: np.array = None,
+    y_offsets: np.array = None,
 ) -> np.array:
-    freq = 16.0 * octaves
+    if x_offsets is not None and x_offsets.shape != shape:
+        raise ArgumentError(f"x_offsets.shape != shape {shape}!={x_offsets.shape}")
+    if y_offsets is not None and y_offsets.shape != shape:
+        raise ArgumentError(f"y_offsets.shape != shape {shape}!={y_offsets.shape}")
     offset_max = 4096 ** 2
     offsets = (random.randrange(offset_max), random.randrange(offset_max))
     width = shape[1]
     height = shape[0]
-    simplex = OpenSimplex(seed=random.randrange(0, 2048 ** 2))
     arr = np.ones((width, height))
     for y in range(height):
         for x in range(width):
@@ -154,7 +190,7 @@ class SimulationState:
         chance_spread_fire_to_tree: float = 0.75,
         chance_fire_sustain: float = 0.25,
         chance_spread_fire_to_ash: float = 0.01,
-        **kwargs
+        **kwargs,
     ):
         next_frame_buffer = np.copy(self.state)
         # print((last_touched_coordinates))
@@ -256,10 +292,16 @@ def generate_forest(x, y, tree_density=0.5, **kwargs) -> np.array:
 
     rivers_layer = generate_noise_2d_crinkly(
         forest.shape,
-        32,
-        octaves=64,
-        crinkle_octaves=rivers_offset_octaves,
-        crinkle_size=rivers_offset_size,
+        noise_map=NoiseMapArgs(
+            x0=0, y0=0, octaves=64, feature_size=32, seed=random.randint(1, 4096)
+        ),
+        crinkle_map=NoiseMapArgs(
+            x0=0,
+            y0=0,
+            octaves=rivers_offset_octaves,
+            feature_size=rivers_offset_size,
+            seed=random.randint(1, 4096),
+        ),
         crinkle_scalar=3,
     )
     # rivers_layer_mask = np.logical_and(

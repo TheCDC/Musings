@@ -10,16 +10,6 @@ from scipy.ndimage import convolve, zoom
 import numpy as np
 from time import strftime
 
-# img = np.zeros([500,500,3])
-
-# img[:,:,0] = np.ones([500,500]) * 64 / 255.0
-# img[:,:,1] = np.ones([500,500]) * 128 / 255.0
-# img[:,:,2] = np.ones([500,500]) * 192 / 255.0
-
-# while True:
-#    img = np.random.random_sample(img.shape)
-#    cv2.imshow("image", img)
-#    cv2.waitKey(20)
 SIMULATION_DIMENSIONS = (50, 50)
 CELL_HEIGHT = 15
 WHITE = np.array(arcade.color.WHITE)
@@ -59,7 +49,7 @@ def color_point_mean(colors: np.array, weights: np.array = None):
 
 class Game:
     def __init__(self, window_height, cell_height):
-        self.window_name = f"Forest Fire {window_height}x{window_height}"
+        self.window_name = None
         self.simulation_height = window_height
         self.cell_height = cell_height
         self.simulation_parameters = None
@@ -70,8 +60,13 @@ class Game:
             (self.simulation_height, self.simulation_height, 3)
         )
         self.is_lit = False
+        self.window_id_unique = "Forest Fire"
+        cv2.namedWindow(self.window_id_unique, cv2.WINDOW_AUTOSIZE)
+        cv2.createButton("Reset",self.setup,None,cv2.QT_PUSH_BUTTON,1)
 
-    def setup(self):
+
+    def setup(self,*args):
+        start_time: float = time.time()
         self.paused: bool = True
         self.is_lit = False
         self.simulation_parameters = dict(
@@ -84,39 +79,24 @@ class Game:
             self.simulation_height, self.simulation_height
         )
         self.previous_state: forest.SimulationState = self.simulation
-        start_time: int = int(round(time.time() * 1000))
         self.state: np.array = self.simulation.state
+        name_old = self.window_name
         self.window_name = (
             f"Forest Fire {self.simulation_height}x{self.simulation_height}"
             + strftime("%Y-%m-%d %H%M%S")
         )
+        cv2.setWindowTitle(self.window_id_unique, self.window_name)
+        cv2.setMouseCallback(self.window_id_unique, self.mouse_click)
 
-        # for y, row in enumerate(self.simulation.state):
-        #    for x, cell in enumerate(row):
-        #        color = np.array(state_to_color[cell])
-        #        sum_pond_neighbors = num_water_neighbors[y][x]
-        #        cell_altitude = self.altitude_map[y][x]
-        #        if(cell == forest.CellStates.pond.value):
-        #            color = (color * 0.95 ** (sum_pond_neighbors)).astype(int)
-        #            pass
-        #        elif cell == forest.CellStates.tree.value:
-        #            #make lighter based on altitude
-        #            color = (color + cell_altitude * (WHITE -
-        #            color)).astype(int)
-        #            #make darker when near pond
-        #            color = (color * 0.90 ** (sum_pond_neighbors * (1 -
-        #            cell_altitude))).astype(int)
-        #        elif cell == forest.CellStates.ash.value:
-        #            color /= self.simulation.times_burned[y][x]
-        #        color[color > 255] = 255
-
-        end_time = int(round(time.time() * 1000))
+        end_time = time.time()
         total_time = end_time - start_time
-        # print('setup', total_time)
+        print(
+            f"setup {total_time:.2f}",
+        )
 
     def on_draw(self):
 
-        start_time = int(round(time.time() * 1000))
+        start_time = time.time()
         status_str = "\n".join(
             [
                 f'density={self.simulation_parameters["tree_density"]:.2f}',
@@ -186,16 +166,17 @@ class Game:
         s = img.shape
 
         # =========== Set up mouse click event handler ==========
-        cv2.imshow(self.window_name, img)
-        cv2.setMouseCallback(self.window_name, self.mouse_click)
+        cv2.imshow(self.window_id_unique, img)
+        cv2.setWindowTitle(self.window_id_unique, self.window_name)
         cv2.waitKey(1)
 
         cv2.imshow(
             "times_burned", (self.simulation.times_burned >= 1).astype("float32")
         )
-        end_time = int(round(time.time() * 1000))
+        cv2.waitKey(1)
+        end_time = time.time()
         total_time = end_time - start_time
-        # print('draw', total_time)
+        # print(f"draw {total_time:.2f}")
 
     def update(self, delta_time, force=False):
         if self.paused and not force:

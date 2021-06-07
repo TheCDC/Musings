@@ -284,7 +284,7 @@ def generate_forest(x, y, tree_density=0.5, **kwargs) -> np.array:
                 ),
                 crinkle_map=land_bridge_noise_args_crinkle1,
             )
-        )
+        )*0.75
         + generate_noise_2d_crinkly(
             forest.shape,
             noise_map=NoiseMapArgs(
@@ -394,7 +394,7 @@ def generate_forest(x, y, tree_density=0.5, **kwargs) -> np.array:
             generate_noise_2d_crinkly(
                 forest.shape,
                 noise_map=NoiseMapArgs(
-                    x0=0, y0=0, seed=random.randint(1, 4096), octaves=8, feature_size=64
+                    x0=0, y0=0, seed=random.randint(1, 4096), octaves=4, feature_size=64
                 ),
                 crinkle_map=oceans_noise_args_crinkle,
             )
@@ -421,7 +421,7 @@ def generate_forest(x, y, tree_density=0.5, **kwargs) -> np.array:
         ),
     )
     forest[oceans_layer == 1] = CellStates.pond.value
-    # forest[land_bridge_layer == 1] = CellStates.tree.value
+    forest[land_bridge_layer == 1] = CellStates.tree.value
     forest[rivers_layer == 1] = CellStates.pond.value
     forest[rivers_tiny_layer == 1] = CellStates.pond.value
     return forest

@@ -84,7 +84,10 @@ def generate_noise_2d_crinkly(
     noise_map: NoiseMapArgs,
     crinkle_map: NoiseMapArgs,
     crinkle_scalar=1,
+    seed=None,
 ) -> np.array:
+    if seed is None:
+        seed = random.randint(0, 4096)
     x_offsets = (
         generate_noise_2d(shape, crinkle_map.feature_size, octaves=crinkle_map.octaves)
         * crinkle_scalar
@@ -99,6 +102,7 @@ def generate_noise_2d_crinkly(
         feature_size=noise_map.feature_size,
         x_offsets=x_offsets,
         y_offsets=y_offsets,
+        seed=seed,
     )
 
 
@@ -108,13 +112,18 @@ def generate_noise_2d(
     octaves=1,
     x_offsets: np.array = None,
     y_offsets: np.array = None,
+    seed=None,
 ) -> np.array:
     if x_offsets is not None and x_offsets.shape != shape:
         raise ArgumentError(f"x_offsets.shape != shape {shape}!={x_offsets.shape}")
     if y_offsets is not None and y_offsets.shape != shape:
         raise ArgumentError(f"y_offsets.shape != shape {shape}!={y_offsets.shape}")
     offset_max = 4096 ** 2
-    offsets = (random.randrange(offset_max), random.randrange(offset_max))
+    if not seed:
+        offsets = (random.randrange(offset_max), random.randrange(offset_max))
+    else:
+        offsets = (seed, seed)
+
     width = shape[1]
     height = shape[0]
     arr = np.ones((width, height))
@@ -284,7 +293,8 @@ def generate_forest(x, y, tree_density=0.5, **kwargs) -> np.array:
                 ),
                 crinkle_map=land_bridge_noise_args_crinkle1,
             )
-        )*0.75
+        )
+        * 0.75
         + generate_noise_2d_crinkly(
             forest.shape,
             noise_map=NoiseMapArgs(
@@ -330,15 +340,15 @@ def generate_forest(x, y, tree_density=0.5, **kwargs) -> np.array:
         )
     ] = 1
     rivers_tiny_layer_noise_args_crinkly = NoiseMapArgs(
-        octaves=64,
-        feature_size=32,
+        octaves=32,
+        feature_size=16,
         seed=random.randint(1, 4096),
     )
     # rivers_tiny_layer = generate_noise_2d(
     rivers_tiny_layer = generate_noise_2d_crinkly(
         forest.shape,
         noise_map=NoiseMapArgs(
-            octaves=1,
+            octaves=2,
             feature_size=16,
             seed=random.randint(1, 4096),
         ),

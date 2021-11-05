@@ -124,7 +124,7 @@ def render_move(
     peg_to: int,
     depth: int,
 ):
-    """"""
+    """ """
     char_disc_segment = "-"
     # return '\n'.join([])
     width_column_size = size + 1
@@ -201,6 +201,8 @@ def create_callback(f=sys.stdout, delay=0):
 
 
 for size in range(1, 12):
-    with open(Path(__file__).parent/'solutions' / f"hanoi-solution-{size}.txt", "w") as f:
+    with open(
+        Path(__file__).parent / "solutions" / f"hanoi-solution-{size}.txt", "w"
+    ) as f:
         print(solve(size, each_step=create_callback(f)))
 print(solve(8, 3, each_step=create_callback(sys.stdout, 0.05)))

@@ -1,5 +1,6 @@
+import sys
 from time import sleep
-from typing import Callable, List
+from typing import Callable, List, Optional
 
 
 def move(state: List[List[int]], a: int, b: int):
@@ -13,10 +14,12 @@ def move(state: List[List[int]], a: int, b: int):
     return state
 
 
-def solve(size=2, each_step=None):
-    state = [list(reversed(range(size))), [], []]
+def solve(size: int = 2, pegs: int = 3, each_step: Optional[Callable] = None):
+    state = [
+        list(reversed(range(size))),
+    ] + [[] for _ in range(pegs - 1)]
     disc_to_move = size - 1  # want to move biggest disc
-    peg_target = 2  # to endmost peg
+    peg_target = pegs - 1  # to endmost peg
     print(state, disc_to_move, peg_target)
     return solve_inner(size, state, disc_to_move, peg_target, each_step=each_step)
 
@@ -26,8 +29,8 @@ def solve_inner(
     state: List[List[int]],
     disc_to_move: int,
     peg_target: int,
-    each_step: Callable,
-    depth=0,
+    each_step: Optional[Callable] = None,
+    depth: int = 0,
 ):
     peg_with_my_disc = max(
         enumerate(state), key=lambda tup: tup[1].count(disc_to_move)
@@ -48,52 +51,36 @@ def solve_inner(
         return state
     if peg_with_my_disc == peg_target:
         return state
-    if src_blocked_by_discs_above:
-        blocker = max(d for d in state[peg_with_my_disc] if d < disc_to_move)
-        target = (peg_with_my_disc + 1) % len(state)
-        state_moved_blocker = solve_inner(
-            size,
-            state,
-            blocker,
-            peg_target=target,
-            each_step=each_step,
-            depth=depth + 1,
+
+    if dest_blocked_by_discs_below or src_blocked_by_discs_above:
+
+        blocker = (
+            max(
+                d for d in state[peg_with_my_disc] if d < disc_to_move
+            )  # dest_blocked_by_discs_below
+            if src_blocked_by_discs_above
+            else min(state[peg_target])
         )
-        # we've cleared the top off now try again
+        target = (
+            (peg_with_my_disc + 1) % len(state)
+            if src_blocked_by_discs_above
+            else (peg_target + 1) % len(state)
+        )
+        target = (
+            (target + 1) % len(state)
+            if target in [peg_with_my_disc, peg_target]
+            else target
+        )
         state_move_target = solve_inner(
             size,
-            state_moved_blocker,
-            disc_to_move,
-            peg_target,
-            each_step=each_step,
-            depth=depth + 1,
-        )
-        return (
             solve_inner(
                 size,
-                state_move_target,
+                state,
                 blocker,
-                peg_target,
+                peg_target=target,
                 each_step=each_step,
                 depth=depth + 1,
-            )
-            if blocker != 0 or len(state[-1]) != size
-            else state_move_target
-        )
-    if dest_blocked_by_discs_below:
-        blocker = min(state[peg_target])
-        target = (peg_target + 1) % len(state)
-        state_moved_blocker = solve_inner(
-            size,
-            state,
-            blocker,
-            peg_target=target,
-            each_step=each_step,
-            depth=depth + 1,
-        )
-        state_move_target = solve_inner(
-            size,
-            state_moved_blocker,
+            ),
             disc_to_move,
             peg_target,
             each_step=each_step,
@@ -124,8 +111,6 @@ def solve_inner(
             depth,
         )
     return state_moved_desired
-
-    # if all discs are
 
 
 def render_move(
@@ -163,11 +148,11 @@ def render_move(
 
                 tokens.extend([" " * size, "|", " " * size])
         rows.append(tokens)
-    rows.append(len("".join(header_row_blank)) * "_")
+    rows.append([len("".join(header_row_blank)) * "_"])
     return "\n".join(["".join(row) for row in rows])
 
 
-def create_callback(f):
+def create_callback(f=sys.stdout, delay=0):
     count = 0
 
     def inner(
@@ -181,7 +166,8 @@ def create_callback(f):
         depth: int,
     ):
         nonlocal count
-        sleep(0)
+        if delay:
+            sleep(delay)
         # print(
         #     depth,
         #     state_next,
@@ -205,12 +191,14 @@ def create_callback(f):
                 depth,
             ),
             file=f,
+            flush=True,
         )
         count += 1
 
     return inner
 
 
-for size in range(1, 6):
+for size in range(1, 12):
     with open(f"hanoi-solution-{size}.txt", "w") as f:
         print(solve(size, each_step=create_callback(f)))
+print(solve(8, 3, each_step=create_callback(sys.stdout, 0.05)))

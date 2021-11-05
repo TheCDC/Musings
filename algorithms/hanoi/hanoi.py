@@ -68,21 +68,26 @@ def solve_inner(
             each_step=each_step,
             depth=depth + 1,
         )
-        return solve_inner(
-            size,
-            state_move_target,
-            blocker,
-            peg_target,
-            each_step=each_step,
-            depth=depth + 1,
+        return (
+            solve_inner(
+                size,
+                state_move_target,
+                blocker,
+                peg_target,
+                each_step=each_step,
+                depth=depth + 1,
+            )
+            if blocker != 0 or len(state[-1]) != size
+            else state_move_target
         )
     if dest_blocked_by_discs_below:
         blocker = min(state[peg_target])
+        target = (peg_target + 1) % len(state)
         state_moved_blocker = solve_inner(
             size,
             state,
             blocker,
-            peg_target=(peg_target + 1) % len(state),
+            peg_target=target,
             each_step=each_step,
             depth=depth + 1,
         )
@@ -94,13 +99,17 @@ def solve_inner(
             each_step=each_step,
             depth=depth + 1,
         )
-        return solve_inner(
-            size,
-            state_move_target,
-            blocker,
-            peg_target,
-            each_step=each_step,
-            depth=depth + 1,
+        return (
+            solve_inner(
+                size,
+                state_move_target,
+                blocker,
+                peg_target,
+                each_step=each_step,
+                depth=depth + 1,
+            )
+            if blocker != 0 or len(state[-1]) != size
+            else state_move_target
         )
     state_moved_desired = move(state, peg_with_my_disc, peg_target)
     if each_step:
@@ -202,7 +211,6 @@ def create_callback(f):
     return inner
 
 
-size = 4
 for size in range(1, 6):
     with open(f"hanoi-solution-{size}.txt", "w") as f:
         print(solve(size, each_step=create_callback(f)))

@@ -144,8 +144,7 @@ def render_move(
                 chars_spaces = " " * num_spaces
                 chars_disc = char_disc_segment * disc_value
 
-                tokens.extend([chars_spaces, chars_disc,
-                              "|", chars_disc, chars_spaces])
+                tokens.extend([chars_spaces, chars_disc, "|", chars_disc, chars_spaces])
             else:
 
                 tokens.extend([" " * size, "|", " " * size])
@@ -200,9 +199,23 @@ def create_callback(f=sys.stdout, delay=0):
     return inner
 
 
-for size in range(1, 12):
-    with open(
-        Path(__file__).parent / "solutions" / f"hanoi-solution-{size}.txt", "w"
-    ) as f:
-        print(solve(size, each_step=create_callback(f)))
-print(solve(8, 3, each_step=create_callback(sys.stdout, 0.05)))
+def render_to_disk():
+    for size in range(1, 12):
+        with open(
+            Path(__file__).parent / "solutions" / f"hanoi-solution-{size}.txt", "w"
+        ) as f:
+            print(solve(size, each_step=create_callback(f)))
+
+
+def main():
+    if len(sys.argv) < 2:
+        print(solve(8, 3, each_step=create_callback(sys.stdout, 0.5)))
+
+    discs = int(sys.argv[1] if len(sys.argv) > 1 else 5)
+    pegs = int(sys.argv[2] if len(sys.argv) > 2 else 3)
+    delay = int(sys.argv[3] if len(sys.argv) > 3 else 0.5)
+    solve(discs, pegs, each_step=create_callback(sys.stdout, delay=delay))
+
+
+if __name__ == "__main__":
+    main()

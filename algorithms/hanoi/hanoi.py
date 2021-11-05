@@ -1,6 +1,7 @@
 import sys
 from time import sleep
 from typing import Callable, List, Optional
+from pathlib import Path
 
 
 def move(state: List[List[int]], a: int, b: int):
@@ -143,7 +144,8 @@ def render_move(
                 chars_spaces = " " * num_spaces
                 chars_disc = char_disc_segment * disc_value
 
-                tokens.extend([chars_spaces, chars_disc, "|", chars_disc, chars_spaces])
+                tokens.extend([chars_spaces, chars_disc,
+                              "|", chars_disc, chars_spaces])
             else:
 
                 tokens.extend([" " * size, "|", " " * size])
@@ -199,6 +201,6 @@ def create_callback(f=sys.stdout, delay=0):
 
 
 for size in range(1, 12):
-    with open(f"hanoi-solution-{size}.txt", "w") as f:
+    with open(Path(__file__).parent/'solutions' / f"hanoi-solution-{size}.txt", "w") as f:
         print(solve(size, each_step=create_callback(f)))
 print(solve(8, 3, each_step=create_callback(sys.stdout, 0.05)))

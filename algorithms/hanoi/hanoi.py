@@ -169,16 +169,6 @@ def create_callback(f=sys.stdout, delay=0):
         nonlocal count
         if delay:
             sleep(delay)
-        # print(
-        #     depth,
-        #     state_next,
-        #     "move disc",
-        #     disc_to_move,
-        #     "from peg",
-        #     peg_from,
-        #     "to peg",
-        #     peg_target,
-        # ),
         print(count, file=f)
         print(
             render_move(
@@ -208,13 +198,28 @@ def render_to_disk():
 
 
 def main():
-    if len(sys.argv) < 2:
-        print(solve(8, 3, each_step=create_callback(sys.stdout, 0.5)))
+    import argparse
 
-    discs = int(sys.argv[1] if len(sys.argv) > 1 else 5)
-    pegs = int(sys.argv[2] if len(sys.argv) > 2 else 3)
-    delay = int(sys.argv[3] if len(sys.argv) > 3 else 0.5)
-    solve(discs, pegs, each_step=create_callback(sys.stdout, delay=delay))
+    parser = argparse.ArgumentParser(description="Tower of Hanoi solver")
+    parser.add_argument(
+        "--n_discs", type=int, help="The number of discs", default=5, required=False
+    )
+    parser.add_argument(
+        "--n_pegs", type=int, help="The number of pegs", default=3, required=False
+    )
+    parser.add_argument(
+        "--t_frame",
+        type=float,
+        help="Delay between frames",
+        default=0.5,
+        required=False,
+    )
+    args = parser.parse_args()
+
+    n_discs = args.n_discs
+    n_pegs = args.n_pegs
+    t_frame = args.t_frame
+    solve(n_discs, n_pegs, each_step=create_callback(sys.stdout, delay=t_frame))
 
 
 if __name__ == "__main__":

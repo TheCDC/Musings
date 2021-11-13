@@ -41,13 +41,6 @@ def solve_inner(
     dest_blocked_by_discs_below = (
         min(state[peg_target], default=disc_to_move) < disc_to_move
     )
-    debug_vars = {
-        "state": state,
-        "disc_to_move": disc_to_move,
-        "peg_target": peg_target,
-        "idx_desired_disc": peg_with_my_disc,
-    }
-    # print(*debug_vars.items())
     if len(state[-1]) == size:
         return state
     if peg_with_my_disc == peg_target:

@@ -21,10 +21,8 @@ def thing2(index, nums, rank):
 
 def thing(index, list_most, list_least):
 
-    most = thing2(index, list_most, 0)
-    least = thing2(index, list_least, 1)
-    lines_most = [l for l in list_most if l[index] == most]
-    lines_least = [l for l in list_least if l[index] == least]
+    lines_most = [l for l in list_most if l[index] == thing2(index, list_most, 0)]
+    lines_least = [l for l in list_least if l[index] == thing2(index, list_least, 1)]
     return lines_most, lines_least
 
 

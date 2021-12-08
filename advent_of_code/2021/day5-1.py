@@ -46,7 +46,6 @@ def apply_lines(
         condition = [d for d in diff if d != 0]
         if not condition:
             break
-    heightmap[line[1][0]][line[1][1]] += 1
     return apply_lines(heightmap, lines[1:], depth=depth + 1)
 
 

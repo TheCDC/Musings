@@ -24,7 +24,7 @@ maxs = reduce(
 # print(linepoints)
 print(maxs)
 
-heightmap = [[0 for _ in range(maxs[0])] for _ in range(maxs[1])]
+heightmap = [[0 for _ in range(maxs[0] + 1)] for _ in range(maxs[1] + 1)]
 
 
 def apply_lines(
@@ -36,17 +36,17 @@ def apply_lines(
         return heightmap
     line = lines[0]
     pos = line[0]
-    diff = (
-        sign(line[1][0] - pos[0]),
-        sign(line[1][1] - pos[1]),
-    )  # needs to include ends
-    while [d for d in diff if d != 0]:
+    while True:
         heightmap[pos[1]][pos[0]] += 1
-        pos = (pos[0] + diff[0], pos[1] + diff[1])
         diff = (
             sign(line[1][0] - pos[0]),
             sign(line[1][1] - pos[1]),
         )  # needs to include ends
+        pos = (pos[0] + diff[0], pos[1] + diff[1])
+        condition = [d for d in diff if d != 0]
+        if not condition:
+            break
+    heightmap[line[1][0]][line[1][1]] += 1
     return apply_lines(heightmap, lines[1:], depth=depth + 1)
 
 
@@ -58,3 +58,5 @@ print(len(matching_cells))
 
 # 23222 high
 # 5566 low
+# 5611 high
+# 5653 wrong

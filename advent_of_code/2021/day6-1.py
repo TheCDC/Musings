@@ -26,4 +26,5 @@ def sim(state: Dict[int, int], steps=80) -> Dict[int, int]:
 
 
 print(initial, step(initial))
+print(sum(sim(initial, steps=80).values()))
 print(sum(sim(initial, steps=256).values()))

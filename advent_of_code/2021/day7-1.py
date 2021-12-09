@@ -7,8 +7,12 @@ with open("inputs/day7.txt") as f:
 counts = Counter(nums)
 
 
-def score(position, counts: Dict[int, int]) -> int:
-    return sum(abs(k - position) * v for k, v in counts.items())
+def linear_cost(x):
+    return x
+
+
+def score(position, counts: Dict[int, int], distance_cost=linear_cost) -> int:
+    return sum(distance_cost(abs(k - position) * v) for k, v in counts.items())
 
 
 def solve(nums):
@@ -22,5 +26,6 @@ def solve(nums):
     return ret
 
 
-print(counts.most_common(10), min(nums), max(nums), solve(nums))
+if __name__ == "__main))":
+    print(counts.most_common(10), min(nums), max(nums), solve(nums))
 # 335271 Correct

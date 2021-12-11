@@ -57,3 +57,13 @@ xxxxxxx =     c, f, g, a, b, d, e
 
 
 """
+with open("inputs/day8.txt") as f:
+    lines = f.readlines()
+    logs = [[x.split() for x in l.split(" | ")] for l in lines]
+
+
+def encode(s: str):
+    return {c: s.count(c) for c in set(s)}
+
+
+print(logs[:5])

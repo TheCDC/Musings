@@ -97,5 +97,14 @@ print(logs[:5])
 ds = logs[0][0]
 
 freqs = get_segment_frequencies(logs[0][0])
-encoded = encode_unknown_digit(ds[0], freqs)
-print(ds, ds[0], freqs, len(freqs), encoded)
+digits_encoded = [encode_unknown_digit(d, freqs) for d in ds]
+print(
+    ds,
+    ds[0],
+    freqs,
+    len(freqs),
+    digits_encoded,
+    set(digits_encoded),
+    len(set(digits_encoded)),
+    sep="\n",
+)

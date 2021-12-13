@@ -1,41 +1,47 @@
 from typing import List, NewType, Tuple
 from functools import reduce
+from copy import deepcopy
 
 PointType = NewType("PointType", Tuple[int, int])
 GridType = NewType(
     "GridType",
-    Tuple[Tuple[int, ...], ...],
+    List[List[int]],
 )
+
+
+def copy_grid(g):
+    return [[c for c in r] for r in g]
 
 
 def fold(grid: GridType, position: int, axis_along: str) -> GridType:
     if axis_along == "x":
-        grid = tuple(zip(*grid))
-    newgrid = [(r[:]) for r in grid]
-    sub1 = grid[:position]
-    sub2 = tuple(reversed(grid[position + 1 :]))
-    assert len(sub2) == len(sub1)
+        grid_adjusted = list(map(list, zip(*grid)))
+    else:
+        grid_adjusted = copy_grid(grid)
+
+    sub1 = grid_adjusted[:position]
+    sss = grid_adjusted[position + 1 :]
+    sub2 = list(reversed(sss + ((len(sub1) - len(sss)) * [[0] * len(sub1[0])])))
+
     assert len(sub2[0]) == len(sub1[0])
-    out = tuple(
-        [
-            tuple([max(col, sub2[irow][icol]) for icol, col in enumerate(row)])
-            for irow, row in enumerate(sub1)
-        ]
-    )
+    assert len(sub2) <= len(sub1)
+    for irow, row in reversed(list(enumerate(sub2))):
+        for icol, col in enumerate(row):
+            sub1[irow][icol] = max(sub1[irow][icol], col)
+    out = copy_grid(sub1)
     if axis_along == "x":
-        out = tuple(zip(*out))
+        out = list(zip(*out))
+    else:
+        out = out
+    assert len(out[0]) <= len(grid[0])
+    assert len(out) <= len(grid)
     return out
 
 
 def create_grid(points: List[PointType]) -> GridType:
     xx, yy = reduce(lambda a, b: (max(a[0], b[0]), max(a[1], b[1])), points, points[0])
     ps = set(points)
-    return tuple(
-        [
-            tuple([1 if (x, y) in ps else 0 for x in range(xx + 1)])
-            for y in range(yy + 1)
-        ]
-    )
+    return [([1 if (x, y) in ps else 0 for x in range(xx + 1)]) for y in range(yy + 1)]
 
 
 def count_points(grid):

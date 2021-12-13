@@ -7,8 +7,8 @@ def main():
     print(count_points(grid))
     folded = grid
     for i in instructions:
-        folded = fold(grid, i[1], axis_along=i[0])
-    print(count_points(folded))
+        folded = fold(folded, i[1], axis_along=i[0])
+    print(*("".join([[".", "#"][c] for c in i]) for i in folded), sep="\n")
     # print(*folded, sep="\n")
     # print(*grid, sep="\n")
 

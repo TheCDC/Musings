@@ -59,8 +59,8 @@ xxxxxxx =     c, f, g, a, b, d, e
 
 METHOD 2
 Handwritten table
-
-	0	1	2	3	4	5	6	7	8	9		0	1	2	3	4	5	6	7	8	9
+-   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
+	0	1	2	3	4	5	6	7	8	9	|	0	1	2	3	4	5	6	7	8	9
 a	1	0	1	1	0	1	1	1	1	1	8	8	0	8	8	0	8	8	8	8	8
 b	1	0	0	0	1	1	1	0	1	1	6	6	0	0	0	6	6	6	0	6	6
 c	1	1	1	1	1	0	0	1	1	1	8	8	8	8	8	8	0	0	8	8	8
@@ -68,12 +68,14 @@ d	0	0	1	1	1	1	1	0	1	1	7	0	0	7	7	7	7	7	0	7	7
 e	1	0	1	0	0	0	1	0	1	0	4	4	0	4	0	0	0	4	0	4	0
 f	1	1	0	1	1	1	1	1	1	1	9	9	9	0	9	9	9	9	9	9	9
 g	1	0	1	1	0	1	1	0	1	1	7	7	0	7	7	0	7	7	0	7	7
-	6	2	5	5	4	5	6	3	7	6											
-
+	6	2	5	5	4	5	6	3	7	6	|										
+-   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   
 """
+
 from typing import Dict, List, TypeVar
 
 from collections import Counter
+
 
 with open("inputs/day8.txt") as f:
     lines = f.readlines()
@@ -84,7 +86,6 @@ CounterStrInt = TypeVar("CounterStrInt", bound=Dict[str, int])
 
 def get_segment_frequencies(population: T):
     vals = [c for p in population for c in p]
-    print(vals)
     return Counter(vals)
 
 
@@ -93,18 +94,60 @@ def encode_unknown_digit(d: str, frequencies: CounterStrInt):
     return tuple(sorted(x.values()))
 
 
-print(logs[:5])
+LOG_MASTER = {
+    "0": "abcefg",
+    "1": "cf",
+    "2": "acdeg",
+    "3": "acdfg",
+    "4": "bcdf",
+    "5": "abdfg",
+    "6": "abdefg",
+    "7": "acf",
+    "8": "abcdefg",
+    "9": "abcdfg",
+}
+xx = [v for _, v in LOG_MASTER.items()]
+FREQS_MASTER = get_segment_frequencies(xx)
+ENCODING_TO_DIGIT_MASTER = {
+    encode_unknown_digit(v, FREQS_MASTER): k for k, v in LOG_MASTER.items()
+}
+
 ds = logs[0][0]
 
 freqs = get_segment_frequencies(logs[0][0])
 digits_encoded = [encode_unknown_digit(d, freqs) for d in ds]
+set_digits_encoded = set(digits_encoded)
 print(
     ds,
     ds[0],
     freqs,
     len(freqs),
     digits_encoded,
-    set(digits_encoded),
-    len(set(digits_encoded)),
+    set_digits_encoded,
+    len(set_digits_encoded),
+    "Unique encodings!"
+    if len(set_digits_encoded) == len(digits_encoded)
+    else "Encodings not unqiue",
+    {x: ENCODING_TO_DIGIT_MASTER[x] for x in digits_encoded},
     sep="\n",
 )
+
+
+def main():
+    s = 0
+    for log in logs:
+        population = log[0]
+        output = log[1]
+        freqs = get_segment_frequencies(population)
+        encoding_to_digit = {encode_unknown_digit(d, freqs): d for d in population}
+        assert len(encoding_to_digit) == 10
+        output_scalar = sum(
+            int(ENCODING_TO_DIGIT_MASTER[encode_unknown_digit(digit, freqs)]) ** exp
+            for digit, exp in zip(output, range(len(output), 0, -1))
+        )
+        s += output_scalar
+    print(s)
+
+
+if __name__ == "__main__":
+    main()

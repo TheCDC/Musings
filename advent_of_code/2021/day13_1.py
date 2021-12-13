@@ -14,34 +14,27 @@ def copy_grid(g):
 
 
 def fold(grid: GridType, position: int, axis_along: str) -> GridType:
-    if axis_along == "x":
-        grid_adjusted = list(map(list, zip(*grid)))
-    else:
-        grid_adjusted = copy_grid(grid)
+    grid_adjusted = (
+        list(map(list, zip(*grid))) if axis_along == "x" else copy_grid(grid)
+    )
 
     sub1 = grid_adjusted[:position]
     sss = grid_adjusted[position + 1 :]
     sub2 = list(reversed(sss + ((len(sub1) - len(sss)) * [[0] * len(sub1[0])])))
 
-    assert len(sub2[0]) == len(sub1[0])
-    assert len(sub2) <= len(sub1)
     for irow, row in reversed(list(enumerate(sub2))):
         for icol, col in enumerate(row):
             sub1[irow][icol] = max(sub1[irow][icol], col)
-    out = copy_grid(sub1)
-    if axis_along == "x":
-        out = list(zip(*out))
-    else:
-        out = out
-    assert len(out[0]) <= len(grid[0])
-    assert len(out) <= len(grid)
-    return out
+    out = list(zip(*copy_grid(sub1))) if axis_along == "x" else copy_grid(sub1)
+    return GridType(out)
 
 
 def create_grid(points: List[PointType]) -> GridType:
     xx, yy = reduce(lambda a, b: (max(a[0], b[0]), max(a[1], b[1])), points, points[0])
     ps = set(points)
-    return [([1 if (x, y) in ps else 0 for x in range(xx + 1)]) for y in range(yy + 1)]
+    return GridType(
+        [([1 if (x, y) in ps else 0 for x in range(xx + 1)]) for y in range(yy + 1)]
+    )
 
 
 def count_points(grid):
@@ -61,13 +54,9 @@ with open("inputs/day13.txt") as f:
 
 
 def main():
-    print(max(x[0] for x in points), max(x[1] for x in points))
     grid = create_grid(points)
-    print(count_points(grid))
     folded = fold(grid, instructions[0][1], axis_along=instructions[0][0])
     print(count_points(folded))
-    # print(*folded, sep="\n")
-    # print(*grid, sep="\n")
 
 
 if __name__ == "__main__":

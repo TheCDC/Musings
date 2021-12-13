@@ -14,7 +14,7 @@ def get_neigbors(grid: GridType, x: int, y: int):
     for o in offsets:
         xx = x + o[0]
         yy = y + o[1]
-        if xx >= 0 and yy >= 0:
+        if 0 <= xx and 0 <= yy:
             try:
                 neighbors.append(grid[yy][xx])
             except IndexError:
@@ -30,13 +30,17 @@ def risk_level(x: int):
     return x + 1
 
 
-def main():
-    lowpoints = [
+def get_lowpoints(grid):
+    return [
         (col, icol, irow)
         for irow, row in enumerate(grid)
         for icol, col in enumerate(row)
         if is_lowpoint(grid, icol, irow)
     ]
+
+
+def main():
+    lowpoints = get_lowpoints(grid)
     print(sum(risk_level(x[0]) for x in lowpoints))
     # print(sum(1 for x in lowpoints if x[0] == 0))
 

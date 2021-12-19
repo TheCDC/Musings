@@ -5,6 +5,11 @@
     }
   ],
   "settings": {
-    "python.formatting.provider": "black"
+    "python.formatting.provider": "black",
+    "python.analysis.extraPaths": [
+      ".",
+      "../",
+      "advent_of_code/2021"
+    ]
   }
 }

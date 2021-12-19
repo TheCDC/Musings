@@ -3,6 +3,7 @@ from collections import deque
 from day13_1 import PointType
 from dataclasses import dataclass
 from util import AdventTimer
+from queue import Queue, LifoQueue
 
 
 @dataclass
@@ -20,6 +21,7 @@ class ProfileStats:
     worse_than_naive: int = 0
     update_best_known_cost_to_point: int = 0
     new_best_path: int = 0
+    idk: int = 0
 
 
 with open("inputs/day15.txt") as f:
@@ -69,10 +71,10 @@ def solve_exhaustive(grid: List[List[int]], difficulty=None):
     difficulty = difficulty if difficulty is not None else len(grid) - 1
     profile = ProfileStats()
     offsets = [(1, 0), (0, 1), (-1, 0), (0, -1)]
-    paths: Deque[PathWithLength] = deque()
+    paths: Queue[PathWithLength] = LifoQueue()
     point_start = PointType((len(grid[0]) - 1 - difficulty, len(grid) - 1 - difficulty))
     point_finish = PointType((len(grid[0]) - 1, len(grid) - 1))
-    paths.append(
+    paths.put(
         PathWithLength(
             cost_total=grid[point_start[1]][point_start[0]],
             path=(point_start,),
@@ -86,17 +88,13 @@ def solve_exhaustive(grid: List[List[int]], difficulty=None):
     i = 0
     with AdventTimer() as timer:
         while paths:
-            path = paths.pop()
+            path = paths.get()
             path_tip = path.path[-1]
-            ss = 0
-            for node in path.path:
-                ss += grid[node[1]][node[0]]
-                if (
-                    ss not in known_cost_start_to_point
-                    or ss < known_cost_start_to_point[node]
-                ):
-                    known_cost_start_to_point[node] = ss
-                    profile.update_best_known_cost_to_point += 1
+            known_cost_to_path_tip = known_cost_start_to_point.get(path_tip, None)
+            if not known_cost_to_path_tip or path.cost_total < known_cost_to_path_tip:
+
+                known_cost_start_to_point[path_tip] = path.cost_total
+                profile.update_best_known_cost_to_point += 1
             if path_tip == point_finish:
 
                 if not path_cheapest or path.cost_total < path_cheapest.cost_total:
@@ -150,14 +148,15 @@ def solve_exhaustive(grid: List[List[int]], difficulty=None):
                 ) > max_cost_between_points(
                     point_start, point_finish
                 ):  # this path can't possibly cost less than the naive one
+                    profile.idk += 1
                     continue
-                paths.append(path_new)
+                paths.put(path_new)
             i += 1
-            if i % 100000 == 0 or len(paths) == 0:
+            if i % 100000 == 0 or paths.qsize() == 0:
                 print(
                     i,
                     f"{timer.duration:.1f}",
-                    len(paths),
+                    paths.qsize(),
                     "cache size",
                     len(known_cost_start_to_point),
                     profile,
@@ -171,7 +170,7 @@ def main():
         s = solve_exhaustive(g, difficulty=None)
         print(s)
         if s:
-            print_points_in_grid(grid_real, s.path_set)
+            print_points_in_grid(g, s.path_set)
 
 
 if __name__ == "__main__":

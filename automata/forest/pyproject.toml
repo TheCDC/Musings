@@ -7,7 +7,7 @@ authors = ["christoipher.chen@gmail.com <christoipher.chen@gmail.com>"]
 [tool.poetry.dependencies]
 python = "^3.8"
 scipy = "^1.5.4"
-numpy = "^1.19.4"
+numpy = "^1.22.0"
 opensimplex = "^0.3"
 noise = "^1.2.2"
 opencv-python = "^4.4.0"

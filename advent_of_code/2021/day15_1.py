@@ -1,9 +1,10 @@
+from time import perf_counter
 from typing import Deque, Dict, List, NewType, Optional, Set, Tuple
 from collections import deque
 from day13_1 import PointType
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from util import AdventTimer
-from queue import Queue, LifoQueue
+from queue import Queue, LifoQueue, PriorityQueue
 
 
 @dataclass
@@ -11,6 +12,10 @@ class PathWithLength:
     cost_total: int
     path: Tuple[PointType, ...]
     path_set: Set[PointType]
+
+    @property
+    def priority(self):
+        return self.cost_total
 
 
 @dataclass
@@ -22,6 +27,7 @@ class ProfileStats:
     update_best_known_cost_to_point: int = 0
     new_best_path: int = 0
     idk: int = 0
+    already_visited: int = 0
 
 
 with open("inputs/day15.txt") as f:
@@ -71,7 +77,7 @@ def solve_exhaustive(grid: List[List[int]], difficulty=None):
     difficulty = difficulty if difficulty is not None else len(grid) - 1
     profile = ProfileStats()
     offsets = [(1, 0), (0, 1), (-1, 0), (0, -1)]
-    paths: Queue[PathWithLength] = LifoQueue()
+    paths: Queue[PathWithLength] = Queue()
     point_start = PointType((len(grid[0]) - 1 - difficulty, len(grid) - 1 - difficulty))
     point_finish = PointType((len(grid[0]) - 1, len(grid) - 1))
     paths.put(
@@ -87,8 +93,10 @@ def solve_exhaustive(grid: List[List[int]], difficulty=None):
     known_cost_start_to_point: Dict[PointType, int] = dict()
     i = 0
     with AdventTimer() as timer:
-        while paths:
-            path = paths.get()
+        while paths.qsize() and len(known_cost_start_to_point) < (
+            point_finish[0] + 1
+        ) * (point_finish[1] + 1):
+            path = paths.get_nowait()
             path_tip = path.path[-1]
             known_cost_to_path_tip = known_cost_start_to_point.get(path_tip, None)
             if not known_cost_to_path_tip or path.cost_total < known_cost_to_path_tip:
@@ -133,8 +141,9 @@ def solve_exhaustive(grid: List[List[int]], difficulty=None):
                     },
                 )
                 if (
-                    pp in known_cost_start_to_point
-                    and path_new.cost_total > known_cost_start_to_point[pp]
+                    path_new.path[-1] in known_cost_start_to_point
+                    and path_new.cost_total
+                    > known_cost_start_to_point[path_new.path[-1]]
                 ):  # worse than the best path from here so far
                     profile.worse_than_best_so_far += 1
                     continue
@@ -143,16 +152,19 @@ def solve_exhaustive(grid: List[List[int]], difficulty=None):
                 ):  # this path already costs more than a direct one of all 9s
                     profile.worse_than_naive += 1
                     continue
-                if path.cost_total + min_cost_between_points(
-                    pp, point_finish
+                if path_new.cost_total + min_cost_between_points(
+                    path_new.path[-1], point_finish
                 ) > max_cost_between_points(
                     point_start, point_finish
                 ):  # this path can't possibly cost less than the naive one
                     profile.idk += 1
                     continue
+                if path_new.path[-1] in known_cost_start_to_point:
+                    profile.already_visited += 1
+                    continue
                 paths.put(path_new)
             i += 1
-            if i % 100000 == 0 or paths.qsize() == 0:
+            if i % 100000 == 0 or (paths.qsize()) == 0:
                 print(
                     i,
                     f"{timer.duration:.1f}",

@@ -27,12 +27,14 @@ def runlengths(state):
 
 def search(state):
     mem = []
+    solutions = []
 
     def inner(
-        state, target=(0, 0, 0, 0), history_state=None, history_moves=None, depth=1000
+        state, target=(0, 0, 0, 0), history_state=None, history_moves=None, depth=10000
     ):
         if check(state):
-            print(state, len(history_moves), runlengths(history_moves))
+            # print(state, len(history_moves), runlengths(history_moves))
+            solutions.append(history_moves)
             return state
         if state in mem:
             # print(state)
@@ -44,7 +46,7 @@ def search(state):
         history_state = history_state if history_state else []
         history_moves = history_moves if history_moves else []
         if state == target:
-            print(state, target, history_moves)
+            # print(state, target, history_moves)
             return history_state
         for index_move, move in reversed(list(enumerate(coefficients))):
             state_next = add(state, move)
@@ -57,13 +59,22 @@ def search(state):
                 depth=depth - 1,
             )
 
-    return inner(state)
+    inner(state)
+    return solutions
 
 
 def main():
     state = [int(i) for i in input("enter puzzle state: ").split()]
-    print(state)
-    search(state)
+    solutions = search(state)
+    solutions.sort(key=lambda t: len(t))
+    print(
+        *[
+            f"{len(s)} moves: "
+            + ", ".join([f"{position=} {times=}" for position, times in runlengths(s)])
+            for s in solutions[:5]
+        ],
+        sep="\n",
+    )
 
 
 if __name__ == "__main__":

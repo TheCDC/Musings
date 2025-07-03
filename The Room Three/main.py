@@ -14,5 +14,4 @@ for p in product(*options):
     x = next(pp)
     for xx in pp:
         x = eval(f"({x}){xx}")
-    # print(p)
-    print(x, p, "YES" if x == 30 else "NO", sep="\t")
+    print("YES" if x == 30 else "NO", x, "\t".join(p), sep="\t")
